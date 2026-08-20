@@ -1,0 +1,1174 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Fusion 360 → SVG</title>
+<style>
+  :root {
+    --bg: #0d1017;
+    --panel: #151a23;
+    --panel2: #1a2130;
+    --border: #242c3b;
+    --text: #dfe6f0;
+    --muted: #8b96a8;
+    --accent: #4da3ff;
+    --accent2: #f0a63c;
+    --ok: #3fd68f;
+    --err: #ff6b6b;
+    --warn: #f0c05a;
+    --radius: 10px;
+    font-size: 14px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: "Segoe UI", system-ui, sans-serif;
+    height: 100vh; display: flex; flex-direction: column; overflow: hidden;
+  }
+
+  /* ---------- Header ---------- */
+  header {
+    display: flex; align-items: center; gap: 14px;
+    padding: 10px 16px; border-bottom: 1px solid var(--border);
+    background: linear-gradient(180deg, #161c28, #121722);
+  }
+  header .logo { font-size: 20px; font-weight: 600; letter-spacing: .3px; }
+  header .logo span { color: var(--accent); }
+  .doc-badge {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--panel2); border: 1px solid var(--border);
+    border-radius: 20px; padding: 5px 14px; font-size: 13px; color: var(--muted);
+    max-width: 46vw; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+  }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: #666; flex: none; }
+  .dot.on { background: var(--ok); box-shadow: 0 0 6px var(--ok); }
+  .dot.off { background: var(--err); }
+  header .spacer { flex: 1; }
+  .pill {
+    display: flex; align-items: center; gap: 8px;
+    padding: 5px 14px; border-radius: 20px; font-size: 13px; font-weight: 600;
+    background: var(--panel2); border: 1px solid var(--border); color: var(--muted);
+  }
+  .pill .ring {
+    display: none; width: 15px; height: 15px; border-radius: 50%; flex: none;
+    border: 2.5px solid rgba(240, 166, 60, .25); border-top-color: var(--accent2);
+    animation: spin .7s linear infinite;
+  }
+  .pill.running { color: var(--accent2); border-color: var(--accent2); }
+  .pill.running .ring { display: inline-block; }
+  .pill.running { animation: pill-glow 1.4s ease-in-out infinite; }
+  @keyframes pill-glow {
+    0%, 100% { box-shadow: 0 0 0 rgba(240, 166, 60, 0); }
+    50% { box-shadow: 0 0 12px rgba(240, 166, 60, .55); }
+  }
+  .pill.success { color: var(--ok); border-color: var(--ok); }
+  .pill.error { color: var(--err); border-color: var(--err); }
+
+  /* ---------- Layout ---------- */
+  main { flex: 1; display: flex; min-height: 0; }
+  aside {
+    width: 300px; flex: none; padding: 14px; overflow-y: auto;
+    border-right: 1px solid var(--border); background: var(--panel);
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  aside.right { border-right: none; border-left: 1px solid var(--border); }
+
+  /* ---------- Split-Button mit Format-Menue ---------- */
+  .split-btn { position: relative; display: flex; }
+  .split-btn .btn.primary { flex: 1; border-radius: 8px 0 0 8px; }
+  .split-btn .btn.primary.arrow {
+    flex: none; width: 44px; border-radius: 0 8px 8px 0;
+    border-left: 1px solid rgba(255,255,255,.28); font-size: 12px;
+  }
+  .menu {
+    position: absolute; top: calc(100% + 5px); left: 0; right: 0; z-index: 20;
+    background: var(--panel2); border: 1px solid var(--border);
+    border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,.5);
+    display: none; overflow: hidden;
+  }
+  .menu.open { display: block; }
+  .menu-item { padding: 9px 12px; font-size: 13px; cursor: pointer; }
+  .menu-item:hover { background: #232c3d; }
+  .menu-item.sel { color: var(--accent); }
+  .menu-item.sel::after { content: "  ✓"; }
+  .menu-item small { color: var(--muted); display: block; font-size: 11px; }
+  .menu.ctx {
+    position: fixed; left: auto; right: auto; top: auto;
+    width: 190px; z-index: 50;
+  }
+  .content { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  .previews { flex: 1; display: flex; min-height: 0; }
+
+  /* ---------- Formular ---------- */
+  .card {
+    background: var(--panel2); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 12px;
+  }
+  .card h3 {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 1.2px;
+    color: var(--muted); margin-bottom: 10px;
+  }
+  .field { margin-bottom: 12px; }
+  .field:last-child { margin-bottom: 0; }
+  .field label.name { display: block; font-size: 13px; margin-bottom: 4px; }
+  .field .help { font-size: 11px; color: var(--muted); margin-top: 3px; }
+  select, input[type="text"], input[type="number"] {
+    width: 100%; padding: 7px 9px; border-radius: 6px;
+    border: 1px solid var(--border); background: #0f141d; color: var(--text);
+    font: inherit; outline: none;
+  }
+  select:focus, input:focus { border-color: var(--accent); }
+  .row { display: flex; gap: 8px; align-items: center; }
+  input[type="range"] { flex: 1; accent-color: var(--accent); }
+  .range-val { min-width: 44px; text-align: right; font-variant-numeric: tabular-nums; color: var(--accent); }
+
+  .toggle { display: flex; align-items: center; gap: 10px; cursor: pointer; user-select: none; }
+  .toggle input { display: none; }
+  .toggle .track {
+    width: 36px; height: 20px; border-radius: 10px; background: #2a3345;
+    position: relative; transition: background .15s; flex: none;
+  }
+  .toggle .track::after {
+    content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px;
+    border-radius: 50%; background: #aab4c4; transition: left .15s, background .15s;
+  }
+  .toggle input:checked + .track { background: var(--accent); }
+  .toggle input:checked + .track::after { left: 18px; background: #fff; }
+
+  /* ---------- Farben-Panel (zwischen den Vorschauen) ---------- */
+  .colors-panel {
+    width: 250px; flex: none; padding: 12px; overflow-y: auto;
+    border-left: 1px solid var(--border); border-right: 1px solid var(--border);
+    background: var(--panel);
+  }
+  .colors-panel h3 {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 1.2px;
+    color: var(--muted); margin-bottom: 8px;
+  }
+  .colors-head {
+    display: flex; justify-content: space-between; font-size: 11px;
+    color: var(--muted); margin: 4px 2px 10px;
+  }
+  .crow { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .crow input[type="color"] {
+    width: 46px; height: 30px; padding: 2px; border-radius: 6px;
+    border: 1px solid var(--border); background: #0f141d; cursor: pointer; flex: none;
+  }
+  .crow .arrow { color: var(--muted); flex: none; }
+  .crow .swatch {
+    width: 30px; height: 30px; border-radius: 6px; flex: none;
+    border: 1px solid var(--border); cursor: pointer; padding: 0;
+  }
+  .crow .swatch:hover { border-color: var(--accent); }
+  .crow .cnames {
+    flex: 1; min-width: 0; font-size: 11px; color: var(--muted);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .crow.changed input[type="color"] { border-color: var(--accent2); }
+  .colors-hint { color: #3d4759; font-size: 12px; line-height: 1.6; }
+
+  /* ---------- Auf-/zuklappbare Options-Gruppen ---------- */
+  .form-col { display: flex; flex-direction: column; gap: 12px; }
+  details.section {
+    background: var(--panel2); border: 1px solid var(--border);
+    border-radius: var(--radius);
+  }
+  details.section > summary {
+    cursor: pointer; user-select: none; list-style: none;
+    display: flex; align-items: center; gap: 7px;
+    padding: 10px 12px; font-size: 11px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 1.2px; color: var(--muted);
+  }
+  details.section > summary::-webkit-details-marker { display: none; }
+  details.section > summary::before {
+    content: "▸"; font-size: 10px; transition: transform .15s;
+  }
+  details.section[open] > summary::before { transform: rotate(90deg); }
+  details.section > summary:hover { color: var(--text); }
+  details.section > .section-body { padding: 2px 12px 12px; }
+
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    padding: 8px 14px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--panel2); color: var(--text); font: inherit; cursor: pointer;
+    transition: border-color .12s, background .12s;
+  }
+  .btn:hover { border-color: var(--accent); }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .btn.primary {
+    background: linear-gradient(180deg, #2f7fd8, #2568b6);
+    border-color: #2f7fd8; font-weight: 600; font-size: 15px;
+    width: 100%; padding: 11px;
+  }
+  .btn.primary:hover { background: linear-gradient(180deg, #3d8ce4, #2d74c6); }
+  .btn.small { padding: 4px 10px; font-size: 12px; }
+
+  .spinner {
+    width: 15px; height: 15px; border-radius: 50%; flex: none;
+    border: 2px solid rgba(255,255,255,.25); border-top-color: #fff;
+    animation: spin .7s linear infinite; display: none;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  body.busy .spinner { display: inline-block; }
+
+  /* ---------- Vorschau ---------- */
+  .pane { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  .pane + .pane { border-left: 1px solid var(--border); }
+  .pane .bar {
+    display: flex; align-items: center; gap: 8px; row-gap: 6px;
+    flex-wrap: wrap; overflow: hidden; padding: 8px 12px;
+    border-bottom: 1px solid var(--border); background: var(--panel);
+    font-size: 12px; color: var(--muted);
+  }
+  .pane .bar .title { font-weight: 600; color: var(--text); flex: none; }
+  .pane .bar .meta {
+    min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .pane .bar .btn { flex: none; }
+  .pane .bar .spacer { flex: 1; }
+  .view {
+    flex: 1; overflow: auto; position: relative;
+    background:
+      linear-gradient(45deg, #161b26 25%, transparent 25%, transparent 75%, #161b26 75%),
+      linear-gradient(45deg, #161b26 25%, transparent 25%, transparent 75%, #161b26 75%),
+      #10141d;
+    background-size: 24px 24px; background-position: 0 0, 12px 12px;
+    display: grid; place-items: center; padding: 14px;
+  }
+  .view .placeholder { color: #3d4759; font-size: 14px; text-align: center; line-height: 1.7; }
+  .meta { font-variant-numeric: tabular-nums; }
+
+  /* Vorschauen: zoombar (Mausrad) + verschiebbar (Ziehen), gekoppelt */
+  .view.panzoom { position: relative; overflow: hidden; cursor: grab; }
+  .view.panzoom.panning { cursor: grabbing; }
+  /* Zoom laeuft ueber die Elementbreite (nicht CSS-scale), damit das
+     SVG bei jeder Stufe scharf nachgerendert wird */
+  .pz-stage { position: absolute; left: 0; top: 0; }
+  .pz-stage svg, .pz-stage img {
+    display: block; max-width: none; max-height: none;
+  }
+
+  /* ---------- Log ---------- */
+  .log-wrap { border-top: 1px solid var(--border); background: #0b0e14; flex: none; }
+  .log-bar {
+    display: flex; align-items: center; gap: 10px; padding: 5px 12px;
+    font-size: 11px; color: var(--muted); border-bottom: 1px solid var(--border);
+  }
+  .log {
+    height: 150px; overflow-y: auto; padding: 6px 12px;
+    font: 12px/1.55 Consolas, "Cascadia Mono", monospace; white-space: pre-wrap;
+  }
+  .log .t { color: #4a5568; margin-right: 8px; }
+  .log .line-out { color: #b8c2d0; }
+  .log .line-ok { color: var(--ok); }
+  .log .line-warn { color: var(--warn); }
+  .log .line-err { color: var(--err); }
+  .log .line-sys { color: var(--accent); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">🚀 Fusion 360 <span>→ SVG</span></div>
+  <div class="doc-badge">
+    <div id="conn-dot" class="dot"></div>
+    <span id="doc-name">Verbinde …</span>
+    <button class="btn small" id="btn-status" title="Status aktualisieren">⟳</button>
+  </div>
+  <div class="spacer"></div>
+  <div id="status-pill" class="pill">
+    <span class="ring"></span><span id="pill-text">Bereit</span>
+  </div>
+</header>
+
+<main>
+  <aside>
+    <button class="btn primary" id="btn-shot">Auslesen aus Fusion</button>
+    <div id="form-fusion" class="form-col"></div>
+  </aside>
+
+  <div class="content">
+    <div class="previews">
+      <div class="pane">
+        <div class="bar">
+          <span class="title">Fusion-Ansicht</span>
+          <span class="meta" id="fusion-meta"></span>
+          <div class="spacer"></div>
+          <button class="btn small" id="btn-viewonly" title="Nur den Viewport-Screenshot aktualisieren">Ansicht ⟳</button>
+        </div>
+        <div class="view panzoom" id="fusion-view">
+          <div class="placeholder" id="fusion-placeholder">„Auslesen aus Fusion" klicken:<br>
+          holt Ansicht, Geometrie und Farben —<br>
+          danach lassen sich Farben und Deckkraft<br>
+          schon vor dem Export einstellen.</div>
+          <div class="pz-stage" id="fusion-stage"></div>
+        </div>
+      </div>
+      <div class="colors-panel">
+        <button class="btn primary" id="btn-preview" style="margin-bottom:12px"
+                title="Baut das SVG aus den ausgelesenen Daten — ohne etwas zu speichern">
+          Vorschau generieren
+        </button>
+        <h3>Farben</h3>
+        <div class="colors-head"><span>◀ Fusion</span><span>Neu (SVG) ▶</span></div>
+        <div id="colors-rows">
+          <div class="colors-hint">„Auslesen aus Fusion" oder ein Export
+          füllt diese Palette.<br><br>Rechts neue Farbe wählen —
+          das SVG aktualisiert sich sofort. Klick auf die Fusion-Farbe
+          links setzt zurück.</div>
+        </div>
+        <button class="btn small" id="btn-colors-reset" style="display:none;margin-top:6px">
+          Alle zurücksetzen
+        </button>
+      </div>
+      <div class="pane">
+        <div class="bar">
+          <span class="title">SVG-Ergebnis</span>
+          <span class="meta" id="result-meta"></span>
+          <div class="spacer"></div>
+          <span class="meta" id="svg-zoom"></span>
+          <button class="btn small" id="btn-fit">Einpassen</button>
+          <button class="btn small" id="btn-100">100&nbsp;%</button>
+        </div>
+        <div class="view panzoom" id="svg-view">
+          <div class="placeholder" id="svg-placeholder">Noch kein Export.<br>
+          Optionen wählen und <b>Exportieren</b> klicken.<br><br>
+          <span style="font-size:12px">Mausrad = Zoom · Ziehen = Verschieben<br>
+          (beide Ansichten laufen synchron)</span></div>
+          <div class="pz-stage" id="svg-stage"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="log-wrap">
+      <div class="log-bar">
+        <span>Protokoll</span>
+        <div class="spacer" style="flex:1"></div>
+        <button class="btn small" id="btn-clear-log">Leeren</button>
+      </div>
+      <div class="log" id="log"></div>
+    </div>
+  </div>
+
+  <aside class="right">
+    <div class="split-btn">
+      <button class="btn primary" id="btn-export">
+        <span class="spinner"></span><span id="btn-export-label">Exportieren (SVG)</span>
+      </button>
+      <button class="btn primary arrow" id="btn-export-arrow" title="Exportformat wählen">▼</button>
+      <div class="menu" id="export-menu">
+        <div class="menu-item sel" data-fmt="svg">SVG<small>Vektor — Standard</small></div>
+        <div class="menu-item" data-fmt="png">PNG<small>Raster 300 dpi, transparent</small></div>
+        <div class="menu-item" data-fmt="jpg">JPG<small>Raster 300 dpi, weißer Hintergrund</small></div>
+        <div class="menu-item" data-fmt="pdf">PDF<small>Vektor</small></div>
+        <div class="menu-item" data-fmt="ai">AI<small>Illustrator (Vektor-PDF)</small></div>
+      </div>
+    </div>
+
+    <div id="form-svg" class="form-col"></div>
+
+    <details class="section" data-section="ausgabe" open>
+      <summary>Ausgabe</summary>
+      <div class="section-body">
+        <div class="field">
+          <label class="toggle">
+            <input type="checkbox" id="out-auto" checked>
+            <span class="track"></span>
+            <span>Automatischer Dateiname</span>
+          </label>
+          <div class="help" style="margin-top:4px">&lt;Dokument&gt;[-Ansicht].&lt;Format&gt; im Projektordner</div>
+        </div>
+        <div class="field row" id="out-row" style="display:none">
+          <input type="text" id="out-path" placeholder="Pfad zur SVG-Datei">
+          <button class="btn small" id="btn-out">…</button>
+        </div>
+      </div>
+    </details>
+  </aside>
+</main>
+
+<div class="menu ctx" id="fusion-ctx">
+  <div class="menu-item" id="ctx-copy">Bild kopieren</div>
+  <div class="menu-item" id="ctx-save">Bild speichern …</div>
+</div>
+
+<script>
+"use strict";
+
+const UI = {
+  previewSvg(svgText, bodyCount) {
+    // Zwischen-Vorschau waehrend der Extraktion (vom Backend gepusht)
+    PanZoom.setSvg(svgText);
+    document.getElementById("result-meta").textContent =
+      "Aufbau … " + bodyCount + " Körper";
+  },
+  appendLog(line, kind) {
+    const log = document.getElementById("log");
+    const cls = UI._classify(line, kind);
+    const t = new Date().toLocaleTimeString("de-DE");
+    const div = document.createElement("div");
+    div.className = "line-" + cls;
+    div.innerHTML = '<span class="t">' + t + "</span>";
+    div.appendChild(document.createTextNode(line));
+    log.appendChild(div);
+    log.scrollTop = log.scrollHeight;
+  },
+  _classify(line, kind) {
+    if (line.startsWith("OK:")) return "ok";
+    if (line.startsWith("Warnung")) return "warn";
+    if (kind === "err") return line.startsWith("Warnung") ? "warn" : "err";
+    if (kind === "sys") return "sys";
+    return "out";
+  },
+};
+
+function makePane(viewId, stageId) {
+  return {
+    view: document.getElementById(viewId),
+    stage: document.getElementById(stageId),
+    natW: 0, natH: 0, fitScale: 1, scale: 1, tx: 0, ty: 0,
+
+    apply() {
+      const el = this.stage.firstElementChild;
+      if (!el) return;
+      // Skalierung ueber die echte Groesse: Browser rendert Vektoren
+      // bei jeder Zoomstufe scharf nach (kein verwaschenes CSS-scale)
+      el.style.width = (this.natW * this.scale) + "px";
+      el.style.height = (this.natH * this.scale) + "px";
+      this.stage.style.transform =
+        "translate(" + this.tx + "px, " + this.ty + "px)";
+    },
+    measure() {
+      const el = this.stage.firstElementChild;
+      if (!el) { this.natW = 0; this.natH = 0; return; }
+      el.style.width = "";
+      el.style.height = "";
+      this.stage.style.transform = "none";
+      const box = el.getBoundingClientRect();
+      this.natW = box.width;
+      this.natH = box.height;
+    },
+    computeFit() {
+      if (!this.natW) return;
+      this.fitScale = Math.min(
+        this.view.clientWidth / this.natW,
+        this.view.clientHeight / this.natH
+      ) * 0.95;
+    },
+    center(k) {
+      // k = Zoom relativ zur Einpassung (1 = eingepasst)
+      this.scale = this.fitScale * k;
+      this.tx = (this.view.clientWidth - this.natW * this.scale) / 2;
+      this.ty = (this.view.clientHeight - this.natH * this.scale) / 2;
+      this.apply();
+    },
+    zoomAt(cx, cy, factor) {
+      const next = Math.min(80, Math.max(0.02, this.scale * factor));
+      const real = next / this.scale;
+      this.tx = cx - (cx - this.tx) * real;
+      this.ty = cy - (cy - this.ty) * real;
+      this.scale = next;
+      this.apply();
+    },
+  };
+}
+
+// Beide Vorschauen sind GEKOPPELT: Zoom/Pan wirkt immer auf beide.
+const PanZoom = {
+  svg: null,
+  fusion: null,
+  dragging: null,
+
+  init() {
+    this.svg = makePane("svg-view", "svg-stage");
+    this.fusion = makePane("fusion-view", "fusion-stage");
+    this.bindEvents(this.svg);
+    this.bindEvents(this.fusion);
+  },
+
+  panes() {
+    return [this.svg, this.fusion].filter((p) => p.natW > 0);
+  },
+
+  bindEvents(pane) {
+    pane.view.addEventListener("wheel", (e) => {
+      if (!this.panes().length) return;
+      e.preventDefault();
+      const rect = pane.view.getBoundingClientRect();
+      const cx = e.clientX - rect.left, cy = e.clientY - rect.top;
+      const factor = e.deltaY < 0 ? 1.15 : 1 / 1.15;
+      this.panes().forEach((p) => p.zoomAt(cx, cy, factor));
+      this.updateLabel();
+    }, { passive: false });
+
+    pane.view.addEventListener("pointerdown", (e) => {
+      if (e.button !== 0) return;  // nur linke Taste verschiebt
+      if (!this.panes().length) return;
+      this.dragging = { x: e.clientX, y: e.clientY };
+      pane.view.setPointerCapture(e.pointerId);
+      document.querySelectorAll(".panzoom").forEach((v) => v.classList.add("panning"));
+    });
+    pane.view.addEventListener("pointermove", (e) => {
+      if (!this.dragging) return;
+      const dx = e.clientX - this.dragging.x;
+      const dy = e.clientY - this.dragging.y;
+      this.dragging = { x: e.clientX, y: e.clientY };
+      this.panes().forEach((p) => { p.tx += dx; p.ty += dy; p.apply(); });
+    });
+    const endDrag = () => {
+      this.dragging = null;
+      document.querySelectorAll(".panzoom").forEach((v) => v.classList.remove("panning"));
+    };
+    pane.view.addEventListener("pointerup", endDrag);
+    pane.view.addEventListener("pointercancel", endDrag);
+  },
+
+  setSvg(svgText) {
+    const previous = { w: this.svg.natW, h: this.svg.natH };
+    this.svg.stage.innerHTML = svgText;
+    document.getElementById("svg-placeholder").style.display = "none";
+    this.svg.measure();
+    this.svg.computeFit();
+    const sameSize = previous.w
+      && Math.abs(previous.w - this.svg.natW) < 1
+      && Math.abs(previous.h - this.svg.natH) < 1;
+    if (sameSize) this.svg.apply();  // Live-Rebuild: Ausschnitt behalten
+    else this.fitAll();              // neue Groesse: beide frisch einpassen
+    this.updateLabel();
+  },
+
+  setFusionImage(dataUri) {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const previous = { w: this.fusion.natW, h: this.fusion.natH };
+        this.fusion.stage.innerHTML = "";
+        this.fusion.stage.appendChild(img);
+        document.getElementById("fusion-placeholder").style.display = "none";
+        this.fusion.measure();
+        this.fusion.computeFit();
+        const sameSize = previous.w
+          && Math.abs(previous.w - this.fusion.natW) < 1
+          && Math.abs(previous.h - this.fusion.natH) < 1;
+        if (sameSize) this.fusion.apply();
+        else this.fusion.center(1);
+        this.updateLabel();
+        resolve(true);
+      };
+      img.onerror = () => resolve(false);
+      img.src = dataUri;
+    });
+  },
+
+  fitAll() {
+    this.panes().forEach((p) => { p.computeFit(); p.center(1); });
+    this.updateLabel();
+  },
+
+  zoom100() {
+    // Anker ist das SVG: dort exakt 100 %, die Fusion-Seite laeuft
+    // mit demselben relativen Faktor mit.
+    const anchor = this.svg.natW ? this.svg : this.fusion;
+    if (!anchor.natW) return;
+    anchor.computeFit();
+    const k = 1 / anchor.fitScale;
+    this.panes().forEach((p) => { p.computeFit(); p.center(k); });
+    this.updateLabel();
+  },
+
+  updateLabel() {
+    const anchor = this.svg.natW ? this.svg : (this.fusion.natW ? this.fusion : null);
+    document.getElementById("svg-zoom").textContent =
+      anchor ? Math.round(anchor.scale * 100) + " %" : "";
+  },
+};
+
+const App = {
+  schema: [],
+  busy: false,
+  format: "svg",
+  hasCache: false,
+  document: null,
+  overrides: {},
+  rebuildTimer: null,
+  rebuilding: false,
+  rebuildPending: false,
+
+  initialized: false,
+
+  async waitForApi() {
+    // pywebview registriert die api-Methoden asynchron nach dem Laden
+    for (let i = 0; i < 150; i++) {
+      if (window.pywebview && pywebview.api
+          && typeof pywebview.api.get_schema === "function") return true;
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    return false;
+  },
+
+  async init() {
+    if (this.initialized) return;
+    this.initialized = true;
+    try {
+      if (!(await this.waitForApi())) {
+        UI.appendLog("Init-Fehler: pywebview-API nicht verfügbar.", "err");
+        this.initialized = false;
+        return;
+      }
+      const schemaData = await pywebview.api.get_schema();
+      this.sections = schemaData.sections || [];
+      this.schema = schemaData.options || schemaData;
+      this.buildForm();
+      this.restoreSettings();
+      this.bindStatic();
+      this.refreshStatus();
+      UI.appendLog("GUI bereit — Einstellungen wählen und exportieren.", "sys");
+    } catch (e) {
+      this.initialized = false;
+      UI.appendLog("Init-Fehler: " + (e && (e.stack || e.message || e)), "err");
+    }
+  },
+
+  // ----- Formulare aus dem Schema bauen (erweiterbar ueber gui.py) -----
+  // "group" = Seitenleiste, "section" = auf-/zuklappbare Gruppe darin
+  buildForm() {
+    const containers = {
+      fusion: document.getElementById("form-fusion"),
+      svg: document.getElementById("form-svg"),
+    };
+    let savedState = {};
+    try {
+      savedState = JSON.parse(localStorage.getItem("svgExportSections.v1")) || {};
+    } catch (e) {}
+
+    const bodies = {};
+    const makeSection = (container, id, label, open) => {
+      const det = document.createElement("details");
+      det.className = "section";
+      det.dataset.section = id;
+      det.open = (id in savedState) ? !!savedState[id] : !!open;
+      det.innerHTML =
+        "<summary>" + label + '</summary><div class="section-body"></div>';
+      container.appendChild(det);
+      bodies[id] = det.querySelector(".section-body");
+    };
+
+    for (const section of this.sections) {
+      const container = containers[section.group];
+      if (container) makeSection(container, section.id, section.label, section.open);
+    }
+    for (const opt of this.schema) {
+      let target = bodies[opt.section];
+      if (!target) {
+        const fallbackId = "auto-" + (opt.group || "svg");
+        if (!bodies[fallbackId]) {
+          makeSection(containers[opt.group] || containers.svg,
+                      fallbackId, "Weitere", true);
+        }
+        target = bodies[fallbackId];
+      }
+      target.appendChild(this.buildField(opt));
+    }
+
+    // Zustand der statischen Sektionen (z. B. Ausgabe) wiederherstellen
+    document.querySelectorAll("details.section").forEach((det) => {
+      const id = det.dataset.section;
+      if (id in savedState) det.open = !!savedState[id];
+      det.addEventListener("toggle", () => this.saveSectionState());
+    });
+  },
+
+  saveSectionState() {
+    const state = {};
+    document.querySelectorAll("details.section").forEach((det) => {
+      state[det.dataset.section] = det.open;
+    });
+    try {
+      localStorage.setItem("svgExportSections.v1", JSON.stringify(state));
+    } catch (e) {}
+  },
+
+  buildField(opt) {
+    const wrap = document.createElement("div");
+    wrap.className = "field";
+    wrap.dataset.id = opt.id;
+    wrap.dataset.type = opt.type;
+
+    if (opt.type === "bool") {
+      wrap.innerHTML =
+        '<label class="toggle"><input type="checkbox" data-role="value">' +
+        '<span class="track"></span><span>' + opt.label + "</span></label>" +
+        (opt.help ? '<div class="help">' + opt.help + "</div>" : "");
+      const checkbox = wrap.querySelector("input");
+      checkbox.checked = !!opt.default;
+      if (opt.live) {
+        checkbox.addEventListener("change", () => this.scheduleRebuild());
+      }
+      return wrap;
+    }
+
+    let control = "";
+    if (opt.type === "choice") {
+      control = '<select data-role="value">' + opt.choices.map(
+        (c) => '<option value="' + c.value + '">' + c.label + "</option>"
+      ).join("") + "</select>";
+    } else if (opt.type === "range") {
+      control =
+        '<div class="row">' +
+        '<input type="range" data-role="value" min="' + opt.min + '" max="' + opt.max +
+        '" step="' + opt.step + '" value="' + opt.default + '">' +
+        '<span class="range-val" data-role="display"></span></div>';
+    } else if (opt.type === "number") {
+      control = '<input type="number" data-role="value" min="' + opt.min +
+        '" max="' + opt.max + '" step="' + opt.step + '" value="' + opt.default + '">';
+    } else if (opt.type === "optional_number") {
+      const initial = opt.default ?? opt.fallback ?? opt.min;
+      control =
+        '<label class="toggle" style="margin-bottom:6px">' +
+        '<input type="checkbox" data-role="enabled"><span class="track"></span>' +
+        "<span>überschreiben</span></label>" +
+        '<div class="row" data-role="slider-row" style="display:none">' +
+        '<input type="range" data-role="value" min="' + opt.min + '" max="' + opt.max +
+        '" step="' + opt.step + '" value="' + initial + '">' +
+        '<span class="range-val" data-role="display"></span></div>';
+    } else {
+      control = '<input type="text" data-role="value" value="' + (opt.default ?? "") + '">';
+    }
+
+    wrap.innerHTML =
+      '<label class="name">' + opt.label + "</label>" + control +
+      (opt.help ? '<div class="help">' + opt.help + "</div>" : "");
+
+    if (opt.type === "choice") wrap.querySelector("select").value = opt.default;
+    if (opt.type === "range") {
+      const slider = wrap.querySelector('[data-role="value"]');
+      const display = wrap.querySelector('[data-role="display"]');
+      const sync = () => { display.textContent = slider.value + (opt.unit || ""); };
+      slider.addEventListener("input", sync);
+      sync();
+    }
+    if (opt.type === "optional_number") {
+      const enabled = wrap.querySelector('[data-role="enabled"]');
+      const row = wrap.querySelector('[data-role="slider-row"]');
+      const slider = wrap.querySelector('[data-role="value"]');
+      const display = wrap.querySelector('[data-role="display"]');
+      enabled.checked = opt.default !== null && opt.default !== undefined;
+      const sync = () => {
+        row.style.display = enabled.checked ? "flex" : "none";
+        display.textContent = Math.round(slider.value * 100) + " %";
+      };
+      enabled.addEventListener("change", sync);
+      slider.addEventListener("input", sync);
+      sync();
+    }
+    if (opt.live) {
+      // "live"-Optionen bauen das SVG aus dem Cache neu — ohne Fusion
+      wrap.querySelectorAll('[data-role="value"], [data-role="enabled"]')
+        .forEach((el) => {
+          el.addEventListener("input", () => this.scheduleRebuild());
+          el.addEventListener("change", () => this.scheduleRebuild());
+        });
+    }
+    return wrap;
+  },
+
+  // ----- Farben-Panel -----
+  renderPalette(palette) {
+    const previous = this.overrides || {};
+    this.overrides = {};
+    const rows = document.getElementById("colors-rows");
+    rows.innerHTML = "";
+    for (const entry of palette || []) {
+      const kept = previous[entry.color];  // bestehende Anpassung behalten
+      const row = document.createElement("div");
+      row.className = "crow" + (kept ? " changed" : "");
+      row.dataset.original = entry.color;
+      if (kept) this.overrides[entry.color] = kept;
+      const names = entry.bodies.length > 2
+        ? entry.bodies.slice(0, 2).join(", ") + " +" + (entry.bodies.length - 2)
+        : entry.bodies.join(", ");
+      row.innerHTML =
+        '<button class="swatch" style="background:' + entry.color +
+        '" title="Zurücksetzen auf ' + entry.color + '"></button>' +
+        '<span class="arrow">→</span>' +
+        '<input type="color" value="' + (kept || entry.color) + '">' +
+        '<div class="cnames" title="' + entry.bodies.join(", ") + '">' + names + "</div>";
+      const picker = row.querySelector("input");
+      picker.addEventListener("input", () => {
+        this.setOverride(row, entry.color, picker.value);
+      });
+      row.querySelector(".swatch").addEventListener("click", () => {
+        picker.value = entry.color;
+        this.setOverride(row, entry.color, entry.color);
+      });
+      rows.appendChild(row);
+    }
+    document.getElementById("btn-colors-reset").style.display =
+      (palette && palette.length) ? "inline-flex" : "none";
+  },
+
+  setOverride(row, original, value) {
+    const changed = value.toUpperCase() !== original.toUpperCase();
+    row.classList.toggle("changed", changed);
+    if (changed) this.overrides[original] = value.toUpperCase();
+    else delete this.overrides[original];
+    this.persistOverrides();
+    this.scheduleRebuild();
+  },
+
+  resetAllColors() {
+    document.querySelectorAll("#colors-rows .crow").forEach((row) => {
+      const original = row.dataset.original;
+      row.querySelector("input").value = original;
+      row.classList.remove("changed");
+    });
+    this.overrides = {};
+    this.persistOverrides();
+    this.scheduleRebuild();
+  },
+
+  persistTimer: null,
+
+  persistOverrides() {
+    this.persistDocScheduled();
+  },
+
+  // Farben + Einstellungen pro Fusion-Dokument speichern (entprellt)
+  persistDocScheduled() {
+    if (!this.document) return;
+    clearTimeout(this.persistTimer);
+    this.persistTimer = setTimeout(() => {
+      pywebview.api.save_doc_settings(
+        this.document, this.overrides, this.collectOptions());
+    }, 500);
+  },
+
+  // ----- Live-Rebuild aus dem Cache -----
+  scheduleRebuild() {
+    if (!this.hasCache) return;
+    clearTimeout(this.rebuildTimer);
+    this.rebuildTimer = setTimeout(() => this.runRebuild(), 350);
+  },
+
+  async runRebuild() {
+    if (this.busy) { this.rebuildPending = true; return; }
+    if (this.rebuilding) { this.rebuildPending = true; return; }
+    this.rebuilding = true;
+    this.setPill("Aktualisiere …", "running");
+    const options = this.collectOptions();
+    options.color_overrides = this.overrides;
+    const result = await pywebview.api.rebuild(options);
+    this.rebuilding = false;
+    if (result.ok) {
+      this.applyResult(result);
+      this.setPill("Vorschau ✓", "success");
+    } else {
+      this.setPill("Fehler ✗", "error");
+    }
+    if (this.rebuildPending) {
+      this.rebuildPending = false;
+      this.scheduleRebuild();
+    }
+  },
+
+  applyResult(result) {
+    document.getElementById("result-meta").textContent =
+      result.width_mm.toFixed(1) + " × " + result.height_mm.toFixed(1) +
+      " mm · " + result.shapeCount + " Flächen · " + result.view;
+    PanZoom.setSvg(result.svg);
+  },
+
+  collectOptions() {
+    const options = {};
+    for (const opt of this.schema) {
+      const wrap = document.querySelector('.field[data-id="' + opt.id + '"]');
+      if (!wrap) continue;
+      if (opt.type === "bool") {
+        options[opt.id] = wrap.querySelector('[data-role="value"]').checked;
+      } else if (opt.type === "optional_number") {
+        const enabled = wrap.querySelector('[data-role="enabled"]').checked;
+        options[opt.id] = enabled
+          ? parseFloat(wrap.querySelector('[data-role="value"]').value)
+          : null;
+      } else if (opt.type === "number" || opt.type === "range") {
+        options[opt.id] = parseFloat(wrap.querySelector('[data-role="value"]').value);
+      } else {
+        options[opt.id] = wrap.querySelector('[data-role="value"]').value;
+      }
+    }
+    if (!document.getElementById("out-auto").checked) {
+      const path = document.getElementById("out-path").value.trim();
+      if (path) options.output = path;
+    }
+    options.format = this.format;
+    return options;
+  },
+
+  // ----- Exportformat (Split-Button-Menue) -----
+  setFormat(fmt) {
+    this.format = fmt;
+    document.getElementById("btn-export-label").textContent =
+      "Exportieren (" + fmt.toUpperCase() + ")";
+    document.querySelectorAll("#export-menu .menu-item").forEach((item) => {
+      item.classList.toggle("sel", item.dataset.fmt === fmt);
+    });
+  },
+
+  saveSettings() {
+    try {
+      localStorage.setItem("svgExportSettings.v2", JSON.stringify(this.collectOptions()));
+    } catch (e) { /* localStorage optional */ }
+  },
+
+  restoreSettings() {
+    let saved = null;
+    try { saved = JSON.parse(localStorage.getItem("svgExportSettings.v2")); } catch (e) {}
+    if (saved) this.applyOptionValues(saved);
+  },
+
+  // Optionswerte in die Formulare uebernehmen (localStorage + Dokument-Speicher)
+  applyOptionValues(saved) {
+    for (const opt of this.schema) {
+      if (!(opt.id in saved)) continue;
+      const wrap = document.querySelector('.field[data-id="' + opt.id + '"]');
+      if (!wrap) continue;
+      const value = saved[opt.id];
+      if (opt.type === "bool") {
+        wrap.querySelector('[data-role="value"]').checked = !!value;
+      } else if (opt.type === "optional_number") {
+        const enabled = wrap.querySelector('[data-role="enabled"]');
+        enabled.checked = value !== null && value !== undefined;
+        if (enabled.checked) wrap.querySelector('[data-role="value"]').value = value;
+        enabled.dispatchEvent(new Event("change"));
+      } else if (value !== null && value !== undefined) {
+        const input = wrap.querySelector('[data-role="value"]');
+        input.value = value;
+        if (opt.type === "range") {
+          input.dispatchEvent(new Event("input"));  // Anzeige nachziehen
+        }
+      }
+    }
+    if (saved.format) this.setFormat(saved.format);
+    if (typeof saved.output === "string" && saved.output) {
+      document.getElementById("out-auto").checked = false;
+      document.getElementById("out-row").style.display = "flex";
+      document.getElementById("out-path").value = saved.output;
+    }
+  },
+
+  // ----- Aktionen -----
+  bindStatic() {
+    document.getElementById("btn-export").addEventListener("click", () => this.runExport());
+    document.getElementById("btn-status").addEventListener("click", () => this.refreshStatus());
+    document.getElementById("btn-shot").addEventListener("click", () => this.readFusion());
+    document.getElementById("btn-viewonly").addEventListener("click", () => this.refreshFusionView());
+
+    // Format-Menue am Export-Button
+    const menu = document.getElementById("export-menu");
+    document.getElementById("btn-export-arrow").addEventListener("click", (e) => {
+      e.stopPropagation();
+      menu.classList.toggle("open");
+    });
+    menu.querySelectorAll(".menu-item").forEach((item) => {
+      item.addEventListener("click", () => {
+        menu.classList.remove("open");
+        this.setFormat(item.dataset.fmt);  // nur auswaehlen — Export erst
+        this.saveSettings();               // per Klick auf den Button links
+        this.persistDocScheduled();
+      });
+    });
+    document.addEventListener("click", () => {
+      menu.classList.remove("open");
+      document.getElementById("fusion-ctx").classList.remove("open");
+    });
+
+    // Rechtsklick in beiden Ansichten: Bild kopieren / speichern
+    const ctx = document.getElementById("fusion-ctx");
+    const openCtx = (e, source) => {
+      e.preventDefault();
+      this.ctxSource = source;
+      ctx.style.left = Math.min(e.clientX, window.innerWidth - 200) + "px";
+      ctx.style.top = Math.min(e.clientY, window.innerHeight - 90) + "px";
+      ctx.classList.add("open");
+    };
+    document.getElementById("fusion-view").addEventListener("contextmenu", (e) => {
+      if (PanZoom.fusion.natW) openCtx(e, "fusion");
+      else e.preventDefault();
+    });
+    document.getElementById("svg-view").addEventListener("contextmenu", (e) => {
+      if (PanZoom.svg.natW) openCtx(e, "svg");
+      else e.preventDefault();
+    });
+    document.getElementById("ctx-copy").addEventListener("click", async () => {
+      ctx.classList.remove("open");
+      const isSvg = this.ctxSource === "svg";
+      if (isSvg) UI.appendLog("Rendere SVG als PNG …", "sys");
+      const result = isSvg
+        ? await pywebview.api.copy_svg_image()
+        : await pywebview.api.copy_fusion_image();
+      UI.appendLog(result.ok
+        ? (isSvg ? "SVG-Bild" : "Fusion-Bild") + " in die Zwischenablage kopiert."
+        : "Kopieren fehlgeschlagen: " + result.error, result.ok ? "sys" : "err");
+    });
+    document.getElementById("ctx-save").addEventListener("click", async () => {
+      ctx.classList.remove("open");
+      const isSvg = this.ctxSource === "svg";
+      if (isSvg) UI.appendLog("Rendere SVG als PNG …", "sys");
+      const result = isSvg
+        ? await pywebview.api.save_svg_image()
+        : await pywebview.api.save_fusion_image();
+      if (result.ok) UI.appendLog("Bild gespeichert: " + result.path, "sys");
+      else if (result.error !== "Abgebrochen.")
+        UI.appendLog("Speichern fehlgeschlagen: " + result.error, "err");
+    });
+    document.getElementById("btn-clear-log").addEventListener("click", () => {
+      document.getElementById("log").innerHTML = "";
+    });
+    document.getElementById("btn-colors-reset").addEventListener("click", () => {
+      this.resetAllColors();
+    });
+    document.getElementById("btn-preview").addEventListener("click", () => {
+      if (!this.hasCache) {
+        UI.appendLog("Erst 'Auslesen aus Fusion' klicken — dann gibt es "
+          + "Daten für die Vorschau.", "err");
+        return;
+      }
+      this.runRebuild();
+    });
+    document.getElementById("out-auto").addEventListener("change", (e) => {
+      document.getElementById("out-row").style.display = e.target.checked ? "none" : "flex";
+      this.persistDocScheduled();
+    });
+    document.getElementById("out-path").addEventListener("change", () => this.persistDocScheduled());
+    // jede Formularaenderung wandert in den Dokument-Speicher
+    ["form-fusion", "form-svg"].forEach((id) => {
+      document.getElementById(id).addEventListener("change", () => this.persistDocScheduled());
+    });
+    document.getElementById("btn-out").addEventListener("click", async () => {
+      const path = await pywebview.api.choose_output();
+      if (path) document.getElementById("out-path").value = path;
+    });
+    document.getElementById("btn-fit").addEventListener("click", () => PanZoom.fitAll());
+    document.getElementById("btn-100").addEventListener("click", () => PanZoom.zoom100());
+    PanZoom.init();
+  },
+
+  setPill(text, cls) {
+    document.getElementById("pill-text").textContent = text;
+    document.getElementById("status-pill").className =
+      "pill" + (cls ? " " + cls : "");
+  },
+
+  async refreshStatus() {
+    const url = this.collectOptions().url;
+    const status = await pywebview.api.get_status(url);
+    const dot = document.getElementById("conn-dot");
+    const name = document.getElementById("doc-name");
+    if (status.connected) {
+      dot.className = "dot on";
+      name.textContent = status.document || "kein aktives Dokument";
+    } else {
+      dot.className = "dot off";
+      name.textContent = "nicht verbunden";
+      UI.appendLog("Fusion nicht erreichbar: " + status.error, "err");
+    }
+  },
+
+  async refreshFusionView() {
+    document.getElementById("fusion-meta").textContent = "lädt …";
+    const result = await pywebview.api.fusion_screenshot(this.collectOptions().url);
+    if (result.ok) {
+      await PanZoom.setFusionImage(result.dataUri);
+      document.getElementById("fusion-meta").textContent =
+        new Date().toLocaleTimeString("de-DE");
+    } else {
+      document.getElementById("fusion-meta").textContent = "";
+      UI.appendLog("Screenshot fehlgeschlagen: " + result.error, "err");
+    }
+  },
+
+  async readFusion() {
+    if (this.busy) return;
+    this.busy = true;
+    const btn = document.getElementById("btn-shot");
+    btn.disabled = true;
+    btn.textContent = "Liest aus Fusion …";
+    this.setPill("Liest aus …", "running");
+
+    // Screenshot sofort anzeigen, Extraktion parallel starten
+    const shotPromise = this.refreshFusionView();
+    const result = await pywebview.api.read_fusion(this.collectOptions());
+    await shotPromise;
+
+    this.busy = false;
+    btn.disabled = false;
+    btn.textContent = "Auslesen aus Fusion";
+    if (result.ok) {
+      this.hasCache = true;
+      this.document = result.document || null;
+      if (result.savedOptions && Object.keys(result.savedOptions).length) {
+        this.applyOptionValues(result.savedOptions);
+        UI.appendLog(
+          "Gespeicherte Einstellungen für '" + this.document + "' geladen.", "sys");
+      }
+      if (result.savedOverrides && Object.keys(result.savedOverrides).length) {
+        this.overrides = { ...result.savedOverrides, ...this.overrides };
+        UI.appendLog(
+          "Gespeicherte Farb-Anpassungen für '" + this.document + "' geladen ("
+          + Object.keys(result.savedOverrides).length + " Farben).", "sys");
+      }
+      this.renderPalette(result.palette);
+      this.refreshStatus();
+      this.runRebuild();  // direkt die erste Vorschau erzeugen
+    } else {
+      this.setPill("Fehler ✗", "error");
+    }
+  },
+
+  async runExport() {
+    if (this.busy) return;
+    this.busy = true;
+    document.body.classList.add("busy");
+    document.getElementById("btn-export").disabled = true;
+    document.getElementById("btn-export-label").textContent = "Exportiere …";
+    this.setPill("Läuft …", "running");
+    this.saveSettings();
+
+    const options = this.collectOptions();
+    options.color_overrides = this.overrides;  // getunte Farben mitnehmen
+    const result = await pywebview.api.run_export(options);
+
+    this.busy = false;
+    document.body.classList.remove("busy");
+    document.getElementById("btn-export").disabled = false;
+    this.setFormat(this.format);  // Label inkl. Format wiederherstellen
+
+    if (result.ok) {
+      this.setPill("Fertig ✓", "success");
+      this.applyResult(result);
+      this.hasCache = true;
+      this.document = result.document || this.document;
+      if (result.appliedOverrides) {
+        this.overrides = { ...result.appliedOverrides };
+      }
+      this.renderPalette(result.palette);
+      this.refreshStatus();
+    } else {
+      this.setPill("Fehler ✗", "error");
+    }
+  },
+};
+
+window.addEventListener("error", (e) => {
+  UI.appendLog("JS-Fehler: " + e.message + " (Zeile " + e.lineno + ")", "err");
+});
+window.addEventListener("unhandledrejection", (e) => {
+  UI.appendLog("Promise-Fehler: " + (e.reason && (e.reason.stack || e.reason)), "err");
+});
+window.addEventListener("pywebviewready", () => App.init());
+// Fallback: falls pywebviewready vor diesem Script gefeuert hat —
+// init() wartet selbst, bis die api-Methoden registriert sind
+setTimeout(() => App.init(), 300);
+</script>
+</body>
+</html>
