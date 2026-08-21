@@ -1,0 +1,229 @@
+# Architektur & Interna
+
+Technische Dokumentation zu F360toSVG — für alle, die den Code erweitern
+oder verstehen wollen, warum etwas so gebaut ist. Die Bedienung steht in
+der [README](../README.md).
+
+## Dateien
+
+| Datei | Rolle |
+|---|---|
+| `gui.py` | GUI-Backend (pywebview): JS-API, Options-Schema, Sektionen, Version |
+| `gui.html` | GUI-Frontend: Formular, gekoppelte Vorschauen, Palette, Log, i18n |
+| `export_svg.py` | Export-Kern (`extract_data`/`finalize_svg`) + CLI |
+| `fusion_extract.py` | Läuft **in Fusion**: sammelt sichtbare Flächen als JSON |
+| `svg_builder.py` | Stapelung, Naht, 3D-Fase, Textur-Muster — erzeugt das SVG |
+| `occlusion.py` | Verdeckungs-Analyse (shapely) |
+| `svg_convert.py` | SVG → PNG/JPG/PDF/AI (Edge headless) |
+| `fusion_mcp_client.py` | Minimaler MCP-Client (streamable HTTP, nur urllib) |
+| `build_exe.bat` | Baut die portable EXE (PyInstaller) |
+| `SVG-Export-GUI.bat` | GUI aus dem Quellcode starten |
+| `SVG-Export.bat` | CLI-Export per Doppelklick |
+| `color_overrides.json` | Dokument-Profile: Farben + Einstellungen (automatisch, nicht im Repo) |
+
+## Ablauf
+
+1. **Verbindung:** `export_svg.py` spricht den lokalen Fusion MCP Server an
+   und schickt `fusion_extract.py` als Skript an das Tool
+   `fusion_mcp_execute` — es läuft damit direkt in der Fusion-API.
+   Konstanten (`VIEW`, `STROKE_TOL_CM`) werden vorher per Regex im
+   Skripttext ersetzt.
+
+2. **Sichtbarkeit:** Eine Fläche gilt als sichtbar, wenn ihre Normale
+   irgendwo eine Komponente **zum Betrachter** hat (`> 0.01`).
+   Bei planaren Flächen reicht eine Messung; bei gekrümmten
+   (Zylinder-/Kegelbänder von Verrundungen, Senkungen, Bohrspitzen)
+   wird auf einem Parameter-Raster gemessen. Exakt parallel zur
+   Blickrichtung stehende Wände fallen raus.
+
+3. **Konturen:** Von jeder sichtbaren Fläche werden alle Rand-Loops
+   (außen + Löcher) über die CoEdges abgelaufen. Die Orientierung
+   jedes Kantensegments wird **geometrisch** bestimmt (welches Ende
+   schließt an die Kette an?), da die API-Flag `isOpposedToEdge`
+   allein nicht immer stimmt — sonst entstehen selbstschneidende
+   Polygone. Kurven werden mit `--tol-mm` Toleranz (Standard 10 µm) zu
+   Polylinien abgetastet und auf die Bildebene projiziert.
+
+4. **Stapelung:** Alle Flächen werden nach **(tiefe_max, tiefe_min)**
+   aufsteigend sortiert (Tiefe = Richtung zum Betrachter): Erst was
+   weiter hinten endet; bei gleicher Vorderkante zuerst, was weiter
+   hinten beginnt. Dadurch liegt z. B. eine Fase korrekt **unter** ihrer
+   Deckfläche, aber **über** allem dahinter. Löcher werden per
+   `fill-rule="evenodd"` ausgespart — tiefere Flächen scheinen durch.
+
+5. **SVG:** mm-Einheiten 1:1, Y-Achse gespiegelt (SVG-Y zeigt nach unten).
+   Jeder Pfad trägt `data-body` (Körpername) und `data-z-mm="von..bis"`,
+   sodass nachvollziehbar bleibt, welche Fläche woher stammt.
+
+### Zweistufiger Kern
+
+`extract_data()` (teuer, spricht mit Fusion) und `finalize_svg(data, ...)`
+(schnell, arbeitet auf einer JSON-Kopie) sind getrennt. Die GUI cacht die
+Extraktionsdaten und baut daraus Live-Vorschauen in ~0,05 s neu, ohne
+Fusion erneut zu befragen. Nur der Export schreibt Dateien
+(`write_file=False` bei allen Vorschau-Aufbauten).
+
+### Ergebnis-Übertragung
+
+Die print-Ausgabe des MCP-Servers wird bei ~1 MiB gekappt — große Designs
+sprengen das locker. Das Fusion-Skript schreibt sein Ergebnis deshalb in
+eine Temp-Datei (`fusion_svg_export.json`) und printet nur deren Pfad.
+Zusätzlich schreibt es Fortschritt (`fusion_svg_progress.txt`) und
+Teilergebnisse pro Körper (`fusion_svg_partial.jsonl`); die GUI liest
+beide per Daemon-Thread mit und baut daraus die Live-Vorschau während
+der Extraktion.
+
+## Textur-Appearances
+
+Hat der Farbkanal einer Appearance eine **Bild-Textur** statt einer Farbe,
+liefert die Extraktion den lokalen Pfad der Texturdatei samt
+Farb-Modifikatoren (Helligkeit/RGBAmount, R/G/B-Faktoren, Invertierung).
+Daraus wird per Pillow die **Durchschnittsfarbe** berechnet
+(Modus `color`, Standard).
+
+Für die Muster-Modi (`image`, `vector`) kommt die Platzierung aus Fusion:
+Kachelgröße, Drehung und Versatz aus den Appearance-Eigenschaften
+(`texture_RealWorldScale*`, Werte in **Zoll**) und der **Ankerpunkt** des
+Kachelrasters aus der Projektions-Matrix von `body.textureMapControl`.
+Daraus baut der Builder ein `<pattern patternUnits="userSpaceOnUse">`.
+Gekrümmte Flächen erhalten dieselbe ebene Kachelung (Parallelprojektion,
+keine Verzerrung wie beim 3D-Mapping).
+
+Beim Vektor-Modus wird die Kachel auf wenige Farbstufen quantisiert und
+per vtracer getract; unter den Pfaden liegt die Durchschnittsfarbe als
+Grundfläche, damit Trace-Lücken an Kachelrändern unsichtbar bleiben.
+Aufbereitete Kacheln werden pro Prozess gecacht (Schlüssel: Datei,
+Faktoren, Modus, Farbstufen, Tint, Helligkeit) — Live-Rebuilds tracen
+nicht erneut.
+
+`texture_recolor=palette` normiert die Kachel auf Graustufen und färbt
+sie mit der Körperfarbe ein (Mittelwert = Zielfarbe), sodass
+Palette-Überschreibungen auch auf die Textur wirken.
+
+## Aufkleber (Decals)
+
+Sichtbare Aufkleber der Stammkomponente werden als base64-data-URI
+eingebettet. Lage und Größe kommen aus der Decal-Transformationsmatrix
+(4×4, zeilenweise — die Basisvektoren kodieren die volle Breite/Höhe),
+das Bild wird über eine SVG-`matrix()` auf ein zentriertes Einheitsquadrat
+abgebildet und auf die Loops seiner Trägerfläche geclippt. Im Stapel liegt
+ein Aufkleber `DECAL_DEPTH_EPS_MM` über seiner Fläche. Aufkleber, die vom
+Betrachter wegzeigen, werden übersprungen.
+
+**Trace-Pipeline** (`--trace-decals`): Binarisieren → Tracen. Weiche
+Alpha-Verläufe (Glühpunkte, Schein) würden vom Tracer in eckige
+Farbstufen-Kleckse zerlegt; deshalb wird das Bild zuerst mit einem
+Alpha-Schwellwert auf harte Konturen gebracht. Konstanten in
+`export_svg.py`: `TRACE_ALPHA_THRESHOLD` und `TRACE_BLUR_RATIO`
+(optionaler Weichzeichner, Standard 0/aus — ein SVG-Filter würde beim
+Rendern gerastert und beim Zoomen unscharf). Schlägt das Tracen fehl,
+fällt der Export automatisch auf die PNG-Einbettung zurück.
+
+## Verdeckungs-Analyse
+
+Der Painter's Algorithm lässt auch Flächen im SVG stehen, die komplett
+von näher liegenden überdeckt sind. `occlusion.py` geht die Zeichenliste
+**von vorn nach hinten** durch, sammelt die abgedeckte Region als
+shapely-Union (Batch-Größe 25) und verwirft vollständig verdeckte Flächen.
+Die Geometrie der behaltenen Flächen bleibt unverändert, das Ergebnis ist
+pixelidentisch — es wird bewusst **nichts beschnitten**, nur ganz oder
+gar nicht verworfen. Decals verdecken nie und werden nie verworfen.
+
+## 3D Fase
+
+Lambert-Schattierung mit fester Sonnenhöhe (`LIGHT_ELEVATION_DEG = 45`)
+über der Bildebene; die Deckfläche ist die Referenzhelligkeit. Der
+Lichtvektor ergibt sich aus der Lichtrichtung (0 = unten, 90 = rechts,
+180 = oben, 270 = links).
+
+- **Flachschattierung** für ebene Fasen und gerade Verrundungsbänder:
+  eine Kipprichtung = ein Farbwert.
+- **Ringfasen** (Kegel-/Torusmantel um eine Achse in Blickrichtung)
+  bekommen einen `linearGradient` mit `gradientUnits="userSpaceOnUse"`,
+  der über den **ganzen** Ring spannt (Zentrum ± Radius entlang der
+  Lichtrichtung). Teilsegmente greifen sich so automatisch den richtigen
+  Ausschnitt. Zentrum und Achse kommen als `ringCenter`/`ringAxisD` aus
+  der Fusion-Geometrie; steht die Achse zu schräg
+  (`|axis_d| < RING_AXIS_MIN_D`), fällt der Builder auf Flachschattierung
+  zurück.
+
+Zwei Details, die viel Debugging gekostet haben:
+
+- **Konkave Ringe** (Innenfase am Loch) brauchen den **gespiegelten**
+  Verlauf — die Extraktion liefert dafür `ringConcave` (Skalarprodukt aus
+  Radialvektor und Normale).
+- Der Verlauf hat einen **dritten Stopp in der Mitte** mit der Farbe einer
+  quer zum Licht stehenden Fase. Ohne ihn interpoliert der Browser linear
+  im RGB-Raum, was bei dunklen Farben deutlich zu hell ist — am Bogenende
+  entsteht dann ein harter Schnitt zur flach schattierten Nachbarfase.
+
+Bei texturierten Körpern bleiben schattierte Fasen **musterfrei** (die
+Kachelung würde die Plastizität zerstören); nur Deckflächen tragen das
+Muster.
+
+## Naht-Stroke
+
+Wo zwei Pfade exakt aneinanderstoßen (z. B. Fasenband ↔ Deckfläche),
+entsteht beim Rendern durch Antialiasing eine haardünne Naht, durch die
+der Hintergrund schimmert. Deshalb bekommt jeder Pfad einen dünnen Stroke
+**in seiner eigenen Füllfarbe** — die später gezeichnete Fläche deckt die
+Naht damit zu. Jede Kontur wächst dadurch optisch um die halbe
+Stroke-Breite (bei 0,1 mm also 0,05 mm). Für maßhaltige Weiterverarbeitung
+(z. B. Lasercut): `--seam-mm 0`.
+
+## GUI erweitern
+
+Optionen sind **schema-getrieben**: `OPTION_SCHEMA` in `gui.py` beschreibt
+jedes Feld (`id`, `label`, `type`, `default`, `help`, …),
+`OPTION_SECTIONS` die auf-/zuklappbaren Gruppen. Eine neue Option braucht:
+
+1. einen Eintrag in `OPTION_SCHEMA` — Typen: `choice`, `number`, `bool`,
+   `text`, `optional_number`, `range` (Slider mit Einheit); `group` wählt
+   die Seitenleiste, `section` die Gruppe, `live: True` macht die Option
+   sofort wirksam (Vorschau-Rebuild aus dem Cache),
+2. einen gleichnamigen Parameter in `export_svg.finalize_svg()` (SVG-Bau)
+   bzw. `extract_data()` (Extraktion).
+
+Einsammeln, Speichern (localStorage + Dokument-Profil) und Übergabe laufen
+generisch über die `id`.
+
+### Mehrsprachigkeit
+
+Die Oberfläche ist deutsch/englisch. Schema-Einträge tragen dafür
+`label_en` und `help_en` (auch je `choice`), die festen UI-Texte stehen im
+`I18N`-Wörterbuch in `gui.html` und werden über `t(key)` geholt;
+`pickL(entry, feld)` wählt die Sprachvariante eines Schema-Feldes. Der
+Sprachwechsel baut die Formulare neu auf und stellt die Werte wieder her.
+Die Auswahl liegt in `localStorage` (`svgExportLang`).
+
+Die Protokoll-Meldungen des Backends sind derzeit noch deutsch.
+
+### Frozen-Pfade (EXE)
+
+`export_svg.app_dir()` liefert das Verzeichnis **neben der EXE** (bzw. den
+Skriptordner) — dort liegen veränderliche Dateien wie
+`color_overrides.json` und die Exporte. `resource_path(name)` liefert
+eingebettete Ressourcen aus dem PyInstaller-Bundle (`sys._MEIPASS`) —
+`gui.html` und `fusion_extract.py`.
+
+## Stilregeln
+
+- **Sichtbare deutsche Texte** (Labels, Hilfen, Log- und Fehlermeldungen,
+  CLI-Hilfen, Doku) immer mit echten Umlauten schreiben: ä ö ü ß. Alle
+  Dateien sind UTF-8. Keine ae/oe/ue-Transliteration — nachträgliches
+  Ersetzen ist fehlerträchtig („neue", „dauert", „Steuerung" …).
+- Neue sichtbare Texte immer zweisprachig anlegen (siehe oben).
+
+## Bekannte Fallstricke
+
+- **pywebview:** Das js_api-Objekt darf **kein öffentliches Attribut
+  `window`** haben — die Brücke serialisiert es rekursiv und registriert
+  dann keine Methoden mehr. Deshalb `self._window`.
+- **`pywebviewready`** kann feuern, bevor das Frontend seinen Listener
+  registriert hat; `App.init()` pollt deshalb, bis die API-Methoden da sind.
+- **Zoom** wird über die echte Elementgröße gemacht, nicht per CSS
+  `transform: scale()` — sonst skaliert der Browser nur die gerasterte
+  Ebene und das SVG wird unscharf.
+- **Fusion-API:** `BRepFaceVector` hat kein `.count`/`.item()`, sondern
+  `.size()` und `[i]`. `ColorProperty` kennt kein
+  `isConnectedTextureMap`, sondern `hasConnectedTexture`/`connectedTexture`.
