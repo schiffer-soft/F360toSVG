@@ -22,6 +22,7 @@ from export_svg import (
     DEFAULT_TOL_MM,
     ExportError,
     app_dir,
+    default_output_path,
     extract_data,
     finalize_svg,
     resource_path,
@@ -943,42 +944,95 @@ def run(_context: str):
 
     # --- Dateisystem ------------------------------------------------------------
 
-    def choose_output(self) -> str | None:
+    # Zuletzt benutzter Ausgabeordner (ueber Sitzungen hinweg)
+    APP_SETTINGS_FILE = DATA_DIR / "app_settings.json"
+
+    def _app_settings(self) -> dict:
         try:
-            return self._choose_output_webview()
+            data = json.loads(self.APP_SETTINGS_FILE.read_text(encoding="utf-8"))
+            return data if isinstance(data, dict) else {}
+        except (OSError, ValueError):
+            return {}
+
+    def _remember_output_dir(self, path: str) -> None:
+        try:
+            settings = self._app_settings()
+            settings["last_export_dir"] = str(Path(path).parent)
+            self.APP_SETTINGS_FILE.write_text(
+                json.dumps(settings, indent=1, ensure_ascii=False), encoding="utf-8"
+            )
+        except (OSError, ValueError):
+            pass  # Merken ist Komfort, nie ein Abbruchgrund
+
+    FORMAT_LABELS = {
+        "svg": "SVG", "png": "PNG", "jpg": "JPG", "pdf": "PDF", "ai": "Illustrator",
+    }
+
+    def suggested_name(self, fmt: str = "svg") -> str:
+        """Vorschlag fuers Speichern: <Dokument>[-Ansicht].<Format>."""
+        fmt = (fmt or "svg").lower()
+        data = (self._cache or {}).get("data") or {}
+        document = data.get("document") or "fusion-export"
+        view = data.get("view") or "top"
+        stem = default_output_path(document, view).stem
+        return f"{stem}.{fmt}"
+
+    def choose_output(self, fmt: str = "svg", suggest: bool = True) -> str | None:
+        """Speichern-Dialog; merkt sich den Ordner fuer das naechste Mal.
+
+        suggest=False laesst das Namensfeld leer (Option "Automatischer
+        Dateiname" ist aus) — dann tippt der Nutzer alles selbst.
+        """
+        fmt = (fmt or "svg").lower()
+        name = self.suggested_name(fmt) if suggest else ""
+        start_dir = self._app_settings().get("last_export_dir") or str(SCRIPT_DIR)
+        try:
+            path = self._choose_output_webview(fmt, name, start_dir)
         except Exception as exc:
             self._push_log(
                 f"pywebview-Dialog fehlgeschlagen ({exc!r}) — "
                 "nutze Windows-Dialog.", "err",
             )
-            return self._choose_output_windows()
+            path = self._choose_output_windows(fmt, name, start_dir)
+        if path:
+            self._remember_output_dir(path)
+        return path
 
-    def _choose_output_webview(self) -> str | None:
+    def _choose_output_webview(self, fmt: str, name: str,
+                               start_dir: str) -> str | None:
         import webview
 
         dialog_type = getattr(webview, "SAVE_DIALOG", None)
         if dialog_type is None:  # pywebview >= 5: Enum statt Konstante
             dialog_type = webview.FileDialog.SAVE
+        label = self.FORMAT_LABELS.get(fmt, fmt.upper())
         result = self._window.create_file_dialog(
             dialog_type,
-            directory=str(SCRIPT_DIR),
-            save_filename="export.svg",
-            file_types=("SVG-Datei (*.svg)", "Alle Dateien (*.*)"),
+            directory=start_dir,
+            save_filename=name,
+            file_types=(f"{label} (*.{fmt})", "Alle Dateien (*.*)"),
         )
         if isinstance(result, (list, tuple)):
             return result[0] if result else None
         return result
 
-    def _choose_output_windows(self) -> str | None:
+    def _choose_output_windows(self, fmt: str, name: str,
+                               start_dir: str) -> str | None:
         """Nativer Speichern-Dialog als Fallback (eigener Prozess, robust)."""
         import subprocess
+
+        label = self.FORMAT_LABELS.get(fmt, fmt.upper())
+
+        def quote(text: str) -> str:  # einfache Anfuehrungszeichen verdoppeln
+            return str(text).replace("'", "''")
 
         script = (
             "Add-Type -AssemblyName System.Windows.Forms; "
             "$d = New-Object System.Windows.Forms.SaveFileDialog; "
-            "$d.Filter = 'SVG-Datei (*.svg)|*.svg|Alle Dateien (*.*)|*.*'; "
-            f"$d.InitialDirectory = '{SCRIPT_DIR}'; "
-            "$d.FileName = 'export.svg'; "
+            f"$d.Filter = '{quote(label)} (*.{fmt})|*.{fmt}|Alle Dateien (*.*)|*.*'; "
+            f"$d.InitialDirectory = '{quote(start_dir)}'; "
+            f"$d.FileName = '{quote(name)}'; "
+            f"$d.DefaultExt = '{fmt}'; $d.AddExtension = $true; "
             "if ($d.ShowDialog() -eq 'OK') { Write-Output $d.FileName }"
         )
         try:
