@@ -21,88 +21,155 @@ from export_svg import (
     DEFAULT_SEAM_STROKE_MM,
     DEFAULT_TOL_MM,
     ExportError,
+    app_dir,
     extract_data,
     finalize_svg,
+    resource_path,
 )
 from fusion_mcp_client import DEFAULT_URL, FusionMcpClient, FusionMcpError
 
-SCRIPT_DIR = Path(__file__).resolve().parent
+# Veraenderliches (Profile, Exporte) liegt neben EXE/Skript,
+# eingebettete Ressourcen (gui.html) kommen aus dem PyInstaller-Bundle
+SCRIPT_DIR = app_dir()
+GUI_HTML = resource_path("gui.html")
 WINDOW_TITLE = "Fusion 360 → SVG"
+APP_VERSION = "1.0.0"  # erscheint links in der Footerleiste
 
-# Auf-/zuklappbare Gruppen der Seitenleisten (Reihenfolge = Anzeige)
+# Auf-/zuklappbare Gruppen der Seitenleisten (Reihenfolge = Anzeige).
+# label = Deutsch, label_en = Englisch — das Frontend waehlt je Sprache.
 OPTION_SECTIONS = [
-    {"id": "extraktion", "label": "Extraktion", "group": "fusion", "open": True},
-    {"id": "verbindung", "label": "Verbindung", "group": "fusion", "open": False},
-    {"id": "svg_basis", "label": "Grundeinstellungen", "group": "svg", "open": True},
-    {"id": "aufkleber", "label": "Aufkleber", "group": "svg", "open": True},
-    {"id": "fase", "label": "3D Fase", "group": "svg", "open": True},
+    {"id": "extraktion", "label": "Extraktion", "label_en": "Extraction", "group": "fusion", "open": True},
+    {"id": "verbindung", "label": "Verbindung", "label_en": "Connection", "group": "fusion", "open": False},
+    {"id": "svg_basis", "label": "Grundeinstellungen", "label_en": "Basics", "group": "svg", "open": True},
+    {"id": "texturen", "label": "Texturen", "label_en": "Textures", "group": "svg", "open": True},
+    {"id": "aufkleber", "label": "Aufkleber", "label_en": "Decals", "group": "svg", "open": True},
+    {"id": "fase", "label": "3D Fase", "label_en": "3D Bevel", "group": "svg", "open": True},
 ]
 
 # Beschreibt die Export-Optionen fuers Frontend. IDs = Parameter von
 # run_export(). Typen: choice | number | bool | text | optional_number | range.
 OPTION_SCHEMA = [
     {
-        "id": "view", "label": "Ansicht", "type": "choice", "default": "auto", "group": "fusion", "section": "extraktion",
+        "id": "view", "label": "Ansicht", "label_en": "View", "type": "choice", "default": "auto", "group": "fusion", "section": "extraktion",
         "choices": [
-            {"value": "auto", "label": "Auto (Fusion-Kamera)"},
-            {"value": "top", "label": "Oben (Z+)"},
-            {"value": "bottom", "label": "Unten (Z−)"},
-            {"value": "front", "label": "Vorne (Y−)"},
-            {"value": "back", "label": "Hinten (Y+)"},
-            {"value": "right", "label": "Rechts (X+)"},
-            {"value": "left", "label": "Links (X−)"},
+            {"value": "auto", "label": "Auto (Fusion-Kamera)", "label_en": "Auto (Fusion camera)"},
+            {"value": "top", "label": "Oben (Z+)", "label_en": "Top (Z+)"},
+            {"value": "bottom", "label": "Unten (Z−)", "label_en": "Bottom (Z−)"},
+            {"value": "front", "label": "Vorne (Y−)", "label_en": "Front (Y−)"},
+            {"value": "back", "label": "Hinten (Y+)", "label_en": "Back (Y+)"},
+            {"value": "right", "label": "Rechts (X+)", "label_en": "Right (X+)"},
+            {"value": "left", "label": "Links (X−)", "label_en": "Left (X−)"},
         ],
         "help": "Blickrichtung der Projektion",
+        "help_en": "Viewing direction of the projection",
     },
     {
-        "id": "seam_mm", "label": "Naht-Stroke (mm)", "type": "number", "group": "svg", "section": "svg_basis",
+        "id": "seam_mm", "label": "Naht-Stroke (mm)", "label_en": "Seam stroke (mm)", "type": "number", "group": "svg", "section": "svg_basis",
         "default": DEFAULT_SEAM_STROKE_MM, "min": 0, "max": 1, "step": 0.05,
         "live": True,
-        "help": "Ueberdeckt Antialiasing-Naehte; 0 = masshaltig",
+        "help": "Überdeckt Antialiasing-Nähte; 0 = maßhaltig",
+        "help_en": "Covers antialiasing seams; 0 = dimensionally exact",
     },
     {
-        "id": "tol_mm", "label": "Kurven-Toleranz (mm)", "type": "number", "group": "fusion", "section": "extraktion",
+        "id": "tol_mm", "label": "Kurven-Toleranz (mm)", "label_en": "Curve tolerance (mm)", "type": "number", "group": "fusion", "section": "extraktion",
         "default": DEFAULT_TOL_MM, "min": 0.001, "max": 1, "step": 0.005,
-        "help": "Sampling-Genauigkeit fuer Splines und Boegen",
+        "help": "Sampling-Genauigkeit für Splines und Bögen",
+        "help_en": "Sampling accuracy for splines and arcs",
     },
     {
-        "id": "decal_opacity", "label": "Deckkraft", "type": "optional_number", "group": "svg", "section": "aufkleber",
+        "id": "decal_opacity", "label": "Deckkraft", "label_en": "Opacity", "type": "optional_number", "group": "svg", "section": "aufkleber",
         "default": 0.5, "min": 0, "max": 1, "step": 0.05, "fallback": 0.5,
         "live": True,
-        "help": "Standard 50 %; Aus = Wert aus Fusion uebernehmen. Wirkt sofort auf das SVG",
+        "help": "Standard 50 %; Aus = Wert aus Fusion übernehmen. Wirkt sofort auf das SVG",
+        "help_en": "Default 50%; off = use the value from Fusion. Updates the SVG immediately",
     },
     {
-        "id": "cull_hidden", "label": "Verdeckte Flaechen entfernen", "type": "bool",
+        "id": "cull_hidden", "label": "Verdeckte Flächen entfernen", "label_en": "Remove hidden faces", "type": "bool",
         "group": "svg", "section": "svg_basis", "default": True, "live": True,
-        "help": "Wirft Flaechen raus, die komplett hinter anderen liegen",
+        "help": "Wirft Flächen raus, die komplett hinter anderen liegen",
+        "help_en": "Drops faces that are completely covered by others",
     },
     {
-        "id": "fase_3d", "label": "Aktivieren", "type": "bool",
+        "id": "fase_3d", "label": "Aktivieren", "label_en": "Enable", "type": "bool",
         "group": "svg", "section": "fase", "default": False, "live": True,
         "help": "Schattiert Fasen je nach Lichtrichtung heller/dunkler",
+        "help_en": "Shades bevels lighter/darker depending on the light direction",
     },
     {
-        "id": "light_deg", "label": "Lichtrichtung", "type": "range",
+        "id": "light_deg", "label": "Lichtrichtung", "label_en": "Light direction", "type": "range",
         "group": "svg", "section": "fase", "default": 180, "min": 0, "max": 360, "step": 5,
         "unit": "°", "live": True,
         "help": "0 = unten, 90 = rechts, 180 = oben, 270 = links",
+        "help_en": "0 = bottom, 90 = right, 180 = top, 270 = left",
     },
     {
-        "id": "fase_strength", "label": "Stärke", "type": "range",
+        "id": "fase_strength", "label": "Stärke", "label_en": "Strength", "type": "range",
         "group": "svg", "section": "fase", "default": 50, "min": 0, "max": 100, "step": 5,
         "unit": " %", "live": True,
         "help": "Wie stark die Fasen aufgehellt/abgedunkelt werden",
+        "help_en": "How strongly bevels are lightened/darkened",
     },
     {
-        "id": "trace_decals", "label": "Vektorisieren", "type": "bool", "group": "svg", "section": "aufkleber",
+        "id": "texture_mode", "label": "Modus", "label_en": "Mode", "type": "choice",
+        "group": "svg", "section": "texturen", "default": "color", "live": True,
+        "choices": [
+            {"value": "color", "label": "Durchschnittsfarbe", "label_en": "Average color"},
+            {"value": "image", "label": "Bild (Muster)", "label_en": "Image (pattern)"},
+            {"value": "vector", "label": "Vektorisiert", "label_en": "Vectorized"},
+        ],
+        "help": "Wie Material-Texturen ins SVG kommen: eingedampft zur "
+                "Durchschnittsfarbe, als gekacheltes Bild oder als Vektor-Muster",
+        "help_en": "How material textures end up in the SVG: reduced to an "
+                   "average color, as a tiled image, or as a vector pattern",
+    },
+    {
+        "id": "texture_colors", "label": "Farbstufen", "label_en": "Color levels", "type": "range",
+        "group": "svg", "section": "texturen", "default": 4, "min": 2, "max": 8,
+        "step": 1, "live": True,
+        "help": "Auf wie viele Farben die Kachel vorm Vektorisieren "
+                "reduziert wird (nur Modus 'Vektorisiert')",
+        "help_en": "How many colors the tile is reduced to before tracing "
+                   "(mode 'Vectorized' only)",
+    },
+    {
+        "id": "texture_recolor", "label": "Texturfarben", "label_en": "Texture colors", "type": "choice",
+        "group": "svg", "section": "texturen", "default": "original", "live": True,
+        "choices": [
+            {"value": "original", "label": "Original (aus Textur)", "label_en": "Original (from texture)"},
+            {"value": "palette", "label": "Palette (einfärben)", "label_en": "Palette (tint)"},
+        ],
+        "help": "Palette: Kachel wird mit der Körperfarbe eingefärbt — "
+                "Farb-Überschreibungen wirken dann auch auf die Textur",
+        "help_en": "Palette: the tile is tinted with the body color — "
+                   "color overrides then also affect the texture",
+    },
+    {
+        "id": "texture_scale", "label": "Skalierung", "label_en": "Scale", "type": "range",
+        "group": "svg", "section": "texturen", "default": 100, "min": 10,
+        "max": 400, "step": 10, "unit": " %", "live": True,
+        "help": "Kachelgröße relativ zu Fusion (100 % = Original)",
+        "help_en": "Tile size relative to Fusion (100% = original)",
+    },
+    {
+        "id": "texture_brightness", "label": "Helligkeit", "label_en": "Brightness", "type": "range",
+        "group": "svg", "section": "texturen", "default": 0, "min": -100,
+        "max": 100, "step": 5, "unit": " %", "live": True,
+        "help": "Textur aufhellen/abdunkeln (wirkt in allen Textur-Modi)",
+        "help_en": "Lighten/darken the texture (applies in all texture modes)",
+    },
+    {
+        "id": "trace_decals", "label": "Vektorisieren", "label_en": "Vectorize", "type": "bool", "group": "svg", "section": "aufkleber",
         "default": False, "live": True,
         "help": "PNG zu Vektorpfaden tracen (nur Flachfarben-Grafiken; "
                 "braucht beim Umschalten einen Moment)",
+        "help_en": "Trace the PNG into vector paths (flat-color artwork only; "
+                   "takes a moment when toggled)",
     },
     {
-        "id": "url", "label": "MCP-Server-URL", "type": "text", "group": "fusion",
+        "id": "url", "label": "MCP-Server-URL", "label_en": "MCP server URL", "type": "text", "group": "fusion",
         "section": "verbindung", "default": DEFAULT_URL,
         "help": "Adresse des Fusion MCP Servers",
+        "help_en": "Address of the Fusion MCP server",
     },
 ]
 
@@ -365,7 +432,20 @@ class Api:
     # --- Status & Vorschau --------------------------------------------------
 
     def get_schema(self) -> dict:
-        return {"sections": OPTION_SECTIONS, "options": OPTION_SCHEMA}
+        return {
+            "sections": OPTION_SECTIONS,
+            "options": OPTION_SCHEMA,
+            "version": APP_VERSION,
+        }
+
+    def open_url(self, url: str) -> dict:
+        """Oeffnet einen Footer-Link im System-Browser (nie im GUI-Fenster)."""
+        if not isinstance(url, str) or not url.startswith(("http://", "https://")):
+            return {"ok": False, "error": f"Ungültige URL: {url!r}"}
+        import webbrowser
+
+        webbrowser.open(url)
+        return {"ok": True}
 
     def get_status(self, url: str = DEFAULT_URL) -> dict:
         """Verbindung testen und aktives Dokument ermitteln."""
@@ -554,7 +634,7 @@ class Api:
     def read_fusion(self, options: dict) -> dict:
         """Nur auslesen: Fusion-Extraktion in den Cache, Palette fuellen."""
         if not self._export_lock.acquire(blocking=False):
-            return {"ok": False, "error": "Ein Vorgang laeuft bereits."}
+            return {"ok": False, "error": "Ein Vorgang läuft bereits."}
         try:
             cleaned = self._clean_options(options)
             out = _UiStream(self._push_log, "out")
@@ -569,7 +649,7 @@ class Api:
             err.flush()
             self._cache = {"data": data, "path": None}
             self._push_log(
-                "Daten ausgelesen — Farben geladen. Aenderungen an Farben/"
+                "Daten ausgelesen — Farben geladen. Änderungen an Farben/"
                 "Deckkraft bauen das SVG direkt aus dem Cache.", "sys",
             )
             saved = self._load_doc_entry(data.get("document"))
@@ -593,7 +673,7 @@ class Api:
     def run_export(self, options: dict) -> dict:
         """Voller Export (Fusion-Extraktion + SVG); Logs streamen live."""
         if not self._export_lock.acquire(blocking=False):
-            return {"ok": False, "error": "Ein Export laeuft bereits."}
+            return {"ok": False, "error": "Ein Export läuft bereits."}
         try:
             cleaned = self._clean_options(options)
             out = _UiStream(self._push_log, "out")
@@ -640,7 +720,7 @@ class Api:
                          "oder einen Export starten.",
             }
         if not self._export_lock.acquire(blocking=False):
-            return {"ok": False, "error": "Ein Export laeuft bereits."}
+            return {"ok": False, "error": "Ein Export läuft bereits."}
         try:
             out = _UiStream(self._push_log, "out")
             err = _UiStream(self._push_log, "err")
@@ -676,6 +756,11 @@ class Api:
             fase_3d=cleaned.get("fase_3d", False),
             light_deg=cleaned.get("light_deg", 180.0),
             fase_strength=cleaned.get("fase_strength", 50.0),
+            texture_mode=cleaned.get("texture_mode", "color"),
+            texture_colors=int(cleaned.get("texture_colors", 4)),
+            texture_recolor=cleaned.get("texture_recolor", "original"),
+            texture_scale=float(cleaned.get("texture_scale", 100.0)),
+            texture_brightness=float(cleaned.get("texture_brightness", 0.0)),
         )
         result["svgPath"] = result["path"]  # SVG bleibt immer die Quelle
         self._last_svg = result["svg"]  # fuer Kontextmenue (kopieren/speichern)
@@ -776,7 +861,7 @@ def main() -> int:
     api = Api()
     api._window = webview.create_window(
         WINDOW_TITLE,
-        str(SCRIPT_DIR / "gui.html"),
+        str(GUI_HTML),
         js_api=api,
         width=1900,
         height=1080,
