@@ -1586,10 +1586,12 @@ const App = {
     btn.textContent = t("reading");
     this.setPill(t("readingPill"), "running");
 
-    // Screenshot sofort anzeigen, Extraktion parallel starten
-    const shotPromise = this.refreshFusionView();
+    // Erst den Screenshot (dauert unter einer Sekunde), dann die
+    // Extraktion. Parallel gestartet wuerden beide von Fusion
+    // nacheinander abgearbeitet — das Bild kaeme dann erst zusammen
+    // mit den Daten am Ende an, statt sofort.
+    await this.refreshFusionView();
     const result = await pywebview.api.read_fusion(this.collectOptions());
-    await shotPromise;
 
     this.busy = false;
     btn.disabled = false;
