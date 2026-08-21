@@ -63,6 +63,26 @@ Extraktionsdaten und baut daraus Live-Vorschauen in ~0,05 s neu, ohne
 Fusion erneut zu befragen. Nur der Export schreibt Dateien
 (`write_file=False` bei allen Vorschau-Aufbauten).
 
+### Reihenfolge beim Auslesen
+
+Beim Klick auf "Auslesen aus Fusion" laufen Screenshot und Extraktion
+**nacheinander**, Screenshot zuerst. Das sieht nach verschenkter Zeit
+aus, ist aber Absicht: Der MCP-Server arbeitet in Fusions Hauptthread,
+zwei gleichzeitige Anfragen werden dort ohnehin serialisiert und
+verzahnen sich. Gemessen am Testmodell:
+
+| | Dauer |
+|---|---|
+| Screenshot allein | 0,7 s |
+| Extraktion allein | 8,5 s |
+| beide gleichzeitig gestartet | 7,3 s — **beide Ergebnisse erst am Ende** |
+| nacheinander | 9,3 s |
+
+Parallel spart also gut zwei Sekunden Gesamtzeit, aber die Fusion-Ansicht
+erscheint dann erst nach 7 s zusammen mit den Daten. Sequenziell steht
+sie nach 0,7 s, und die Extraktion laeuft danach mit ihrem Live-Aufbau
+der Vorschau — die Wartezeit fuehlt sich deutlich kuerzer an.
+
 ### Ergebnis-Übertragung
 
 Die print-Ausgabe des MCP-Servers wird bei ~1 MiB gekappt — große Designs
