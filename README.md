@@ -109,9 +109,12 @@ level. Right-click either preview to copy or save the image.
 
 #### Step 3 — Export
 
-**Export** writes the file — using the data you just previewed, so what you see is exactly
-what you get (and it takes a fraction of a second). If you never read from Fusion in this
-session, it extracts first. The ▼ arrow next to the button only *selects* the format:
+**Export** opens the usual Windows save dialog, then writes the file — using the data you
+just previewed, so what you see is exactly what you get (and it takes a fraction of a
+second). If you never read from Fusion in this session, it extracts first. The folder you
+chose is remembered for next time, and **Suggest file name** pre-fills
+`<Document>[-view].<format>`; switch it off to type the name yourself. The ▼ arrow next to
+the button only *selects* the format:
 
 | Format | What you get |
 |--------|--------------|
@@ -361,10 +364,12 @@ Zoomstufe scharf nachgerendert. Rechtsklick auf eine Vorschau kopiert oder speic
 
 #### Schritt 3 — Exportieren
 
-**Exportieren** schreibt die Datei — aus genau den Daten, die du gerade in der Vorschau
-gesehen hast. Das Ergebnis entspricht damit exakt der Vorschau und ist im Bruchteil einer
-Sekunde da. Wurde in dieser Sitzung noch nie ausgelesen, extrahiert der Export selbst. Der
-▼-Pfeil daneben *wählt nur* das Format:
+**Exportieren** öffnet den gewohnten Windows-Speichern-Dialog und schreibt dann die Datei —
+aus genau den Daten, die du gerade in der Vorschau gesehen hast. Das Ergebnis entspricht
+damit exakt der Vorschau und ist im Bruchteil einer Sekunde da. Wurde in dieser Sitzung noch
+nie ausgelesen, extrahiert der Export selbst. Der zuletzt gewählte Ordner wird gemerkt, und
+**Dateiname vorschlagen** trägt `<Dokument>[-Ansicht].<Format>` schon ein — ausgeschaltet
+tippst du den Namen selbst. Der ▼-Pfeil daneben *wählt nur* das Format:
 
 | Format | Ergebnis |
 |--------|----------|

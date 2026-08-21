@@ -456,10 +456,6 @@
           </label>
           <div class="help" style="margin-top:4px" id="out-auto-help">&lt;Dokument&gt;[-Ansicht].&lt;Format&gt; im Projektordner</div>
         </div>
-        <div class="field row" id="out-row" style="display:none">
-          <input type="text" id="out-path" placeholder="Pfad zur SVG-Datei">
-          <button class="btn small" id="btn-out">…</button>
-        </div>
       </div>
     </details>
   </aside>
@@ -529,9 +525,9 @@ const I18N = {
     log: "Protokoll", clear: "Leeren",
     export: "Exportieren", exporting: "Exportiere …",
     exportFmtTitle: "Exportformat wählen",
-    output: "Ausgabe", autoName: "Automatischer Dateiname",
-    autoNameHelp: "<Dokument>[-Ansicht].<Format> im Projektordner",
-    outPh: "Pfad zur SVG-Datei",
+    output: "Ausgabe", autoName: "Dateiname vorschlagen",
+    autoNameHelp: "Der Speichern-Dialog schlägt <Dokument>[-Ansicht].<Format> vor; aus = leeres Namensfeld.",
+    exportCancelled: "Export abgebrochen.",
     ctxCopy: "Bild kopieren", ctxSave: "Bild speichern …",
     building: "Aufbau … {n} Körper", updating: "Aktualisiere …",
     previewOk: "Vorschau ✓", doneOk: "Fertig ✓", fail: "Fehler ✗",
@@ -574,9 +570,9 @@ const I18N = {
     log: "Log", clear: "Clear",
     export: "Export", exporting: "Exporting …",
     exportFmtTitle: "Choose export format",
-    output: "Output", autoName: "Automatic file name",
-    autoNameHelp: "<Document>[-view].<format> in the project folder",
-    outPh: "Path to the SVG file",
+    output: "Output", autoName: "Suggest file name",
+    autoNameHelp: "The save dialog suggests <Document>[-view].<format>; off = empty name field.",
+    exportCancelled: "Export cancelled.",
     ctxCopy: "Copy image", ctxSave: "Save image …",
     building: "Building … {n} bodies", updating: "Updating …",
     previewOk: "Preview ✓", doneOk: "Done ✓", fail: "Error ✗",
@@ -1126,7 +1122,6 @@ const App = {
     set("out-summary", "output");
     set("out-auto-label", "autoName");
     set("out-auto-help", "autoNameHelp");
-    document.getElementById("out-path").placeholder = t("outPh");
     set("ctx-copy", "ctxCopy");
     set("ctx-save", "ctxSave");
     set("footer-donate", "donate");
@@ -1384,10 +1379,6 @@ const App = {
         options[opt.id] = wrap.querySelector('[data-role="value"]').value;
       }
     }
-    if (!document.getElementById("out-auto").checked) {
-      const path = document.getElementById("out-path").value.trim();
-      if (path) options.output = path;
-    }
     options.format = this.format;
     return options;
   },
@@ -1437,11 +1428,6 @@ const App = {
       }
     }
     if (saved.format) this.setFormat(saved.format);
-    if (typeof saved.output === "string" && saved.output) {
-      document.getElementById("out-auto").checked = false;
-      document.getElementById("out-row").style.display = "flex";
-      document.getElementById("out-path").value = saved.output;
-    }
   },
 
   // ----- Aktionen -----
@@ -1532,18 +1518,12 @@ const App = {
       }
       this.runRebuild();
     });
-    document.getElementById("out-auto").addEventListener("change", (e) => {
-      document.getElementById("out-row").style.display = e.target.checked ? "none" : "flex";
+    document.getElementById("out-auto").addEventListener("change", () => {
       this.persistDocScheduled();
     });
-    document.getElementById("out-path").addEventListener("change", () => this.persistDocScheduled());
     // jede Formularaenderung wandert in den Dokument-Speicher
     ["form-fusion", "form-svg"].forEach((id) => {
       document.getElementById(id).addEventListener("change", () => this.persistDocScheduled());
-    });
-    document.getElementById("btn-out").addEventListener("click", async () => {
-      const path = await pywebview.api.choose_output();
-      if (path) document.getElementById("out-path").value = path;
     });
     document.getElementById("btn-fit").addEventListener("click", () => PanZoom.fitAll());
     document.getElementById("btn-100").addEventListener("click", () => PanZoom.zoom100());
@@ -1637,6 +1617,16 @@ const App = {
 
   async runExport() {
     if (this.busy) return;
+
+    // Erst fragen, wohin gespeichert werden soll. Bei "Automatischer
+    // Dateiname" ist der Vorschlag schon eingetragen, sonst leer.
+    const auto = document.getElementById("out-auto").checked;
+    const target = await pywebview.api.choose_output(this.format, auto);
+    if (!target) {
+      UI.appendLog(t("exportCancelled"), "sys");
+      return;
+    }
+
     this.busy = true;
     document.body.classList.add("busy");
     document.getElementById("btn-export").disabled = true;
@@ -1646,6 +1636,7 @@ const App = {
 
     const options = this.collectOptions();
     options.color_overrides = this.overrides;  // getunte Farben mitnehmen
+    options.output = target;
     const result = await pywebview.api.run_export(options);
 
     this.busy = false;
