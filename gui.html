@@ -788,6 +788,20 @@ const PanZoom = {
     this.updateLabel();
   },
 
+  // Beide Ansichten zuruecksetzen (neues Auslesen): sonst steht das
+  // alte Modell noch da, waehrend schon das naechste geholt wird.
+  clearAll() {
+    [[this.fusion, "fusion-placeholder"], [this.svg, "svg-placeholder"]]
+      .forEach(([pane, placeholder]) => {
+        pane.stage.innerHTML = "";
+        pane.stage.style.transform = "none";
+        pane.natW = 0; pane.natH = 0; pane.scale = 1; pane.tx = 0; pane.ty = 0;
+        const hint = document.getElementById(placeholder);
+        if (hint) hint.style.display = "";
+      });
+    this.updateLabel();
+  },
+
   zoom100() {
     // Anker ist das SVG: dort exakt 100 %, die Fusion-Seite laeuft
     // mit demselben relativen Faktor mit.
@@ -1585,6 +1599,10 @@ const App = {
     btn.disabled = true;
     btn.textContent = t("reading");
     this.setPill(t("readingPill"), "running");
+    // Beide Ansichten leeren — es kommt ja gleich ein frischer Stand
+    PanZoom.clearAll();
+    document.getElementById("fusion-meta").textContent = "";
+    document.getElementById("result-meta").textContent = "";
 
     // Erst den Screenshot (dauert unter einer Sekunde), dann die
     // Extraktion. Parallel gestartet wuerden beide von Fusion
