@@ -86,15 +86,27 @@
   .app-footer .footer-paypal:hover svg { filter: brightness(1.2); }
   .app-footer .footer-brand-icon { height: 14px; width: auto; border-radius: 2px; display: block; }
   .app-footer #footer-version { font-family: ui-monospace, monospace; }
-  /* Update-Hinweis: dezent, faellt nur beim Hinsehen auf */
+  /* Update-Hinweis: kraeftig genug zum Auffallen, aber kein Popup.
+     Der Puls laeuft nur ein paar Mal beim Erscheinen. */
   .app-footer #footer-update {
-    display: none; align-items: center; gap: 4px; margin-left: 8px;
-    padding: 1px 7px; border-radius: 999px;
-    border: 1px solid rgba(77, 140, 255, 0.45);
-    background: rgba(77, 140, 255, 0.10); color: var(--accent);
+    display: none; align-items: center; gap: 5px; margin-left: 10px;
+    padding: 2px 10px; border-radius: 999px;
+    border: 1px solid var(--accent);
+    background: var(--accent); color: #fff;
+    font-weight: 600; letter-spacing: .2px;
   }
-  .app-footer #footer-update.show { display: inline-flex; }
-  .app-footer #footer-update:hover { color: var(--text); border-color: var(--accent); }
+  .app-footer #footer-update.show {
+    display: inline-flex;
+    animation: updatePulse 1.6s ease-out 4;
+  }
+  .app-footer #footer-update:hover {
+    background: #6ea4ff; border-color: #6ea4ff; color: #fff;
+  }
+  @keyframes updatePulse {
+    0%   { box-shadow: 0 0 0 0 rgba(77, 140, 255, 0.65); }
+    70%  { box-shadow: 0 0 0 9px rgba(77, 140, 255, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(77, 140, 255, 0); }
+  }
 
   /* ---------- Sprach-Umschalter (Flaggen) ---------- */
   .lang-switch { display: flex; gap: 6px; margin-right: 12px; }
@@ -535,8 +547,9 @@ const I18N = {
     overridesLoaded: "Gespeicherte Farb-Anpassungen für '{d}' geladen ({n} Farben).",
     guiReady: "GUI bereit — Einstellungen wählen und exportieren.",
     donate: "Gefällt dir? Spendier mir einen Kaffee",
-    updateAvail: "Version {v} verfügbar",
+    updateAvail: "Update auf {v}",
     updateTitle: "Neue Version auf GitHub — klicken zum Herunterladen",
+    updateLog: "Neue Version {v} verfügbar — unten links anklicken zum Herunterladen.",
   },
   en: {
     ready: "Ready", connecting: "Connecting …",
@@ -578,8 +591,9 @@ const I18N = {
     overridesLoaded: "Loaded saved color overrides for '{d}' ({n} colors).",
     guiReady: "GUI ready — choose settings and export.",
     donate: "Like it? Buy me a coffee",
-    updateAvail: "version {v} available",
+    updateAvail: "update to {v}",
     updateTitle: "New version on GitHub — click to download",
+    updateLog: "Version {v} is available — click the badge at the bottom left to download.",
   },
 };
 
@@ -927,6 +941,8 @@ const App = {
         if (info && info.available) {
           this.update = info;
           this.applyUpdateHint();
+          // zusaetzlich ins Protokoll — dort schaut man beim Arbeiten hin
+          UI.appendLog(t("updateLog").replace("{v}", info.version), "sys");
         }
       } catch (e) { /* offline o. ae. - bewusst ignorieren */ }
     }, 30000);
