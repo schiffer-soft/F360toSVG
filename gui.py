@@ -35,7 +35,7 @@ from i18n import t
 SCRIPT_DIR = app_dir()
 GUI_HTML = resource_path("gui.html")
 WINDOW_TITLE = "Fusion 360 → SVG"
-APP_VERSION = "1.0.1"  # erscheint links in der Footerleiste
+APP_VERSION = "1.0.2"  # erscheint links in der Footerleiste
 GITHUB_REPO = "schiffer-soft/F360toSVG"
 
 
@@ -90,13 +90,15 @@ OPTION_SCHEMA = [
     {
         "id": "seam_mm", "label": "Naht-Stroke", "label_en": "Seam stroke",
         "type": "optional_number", "group": "svg", "section": "svg_basis",
-        "default": None, "min": 0.02, "max": 0.5, "step": 0.02,
+        "default": DEFAULT_SEAM_STROKE_MM, "min": 0.02, "max": 0.5, "step": 0.02,
         "fallback": DEFAULT_SEAM_STROKE_MM, "factor": 1, "digits": 2, "unit": " mm",
         "live": True,
         "help": "Überdeckt feine Antialiasing-Nähte zwischen angrenzenden "
-                "Flächen. Aus = maßhaltig (z. B. für Lasercut)",
-        "help_en": "Covers thin antialiasing seams between adjacent faces. "
-                   "Off = dimensionally exact (e.g. for laser cutting)",
+                "Flächen — normalerweise an lassen. Aus = maßhaltig "
+                "(z. B. für Lasercut)",
+        "help_en": "Covers thin antialiasing seams between adjacent faces — "
+                   "usually keep it on. Off = dimensionally exact "
+                   "(e.g. for laser cutting)",
     },
     {
         "id": "tol_mm", "label": "Kurven-Toleranz (mm)", "label_en": "Curve tolerance (mm)", "type": "number", "group": "fusion", "section": "extraktion",

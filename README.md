@@ -99,7 +99,7 @@ Everything you change now rebuilds the preview from the cache in about 0.05 seco
 - **Decals** — opacity, or trace them into vector paths
 - **3D bevel** — enable it, set light direction and strength
 - **Hidden faces** — remove faces that are completely covered (on by default)
-- **Seam stroke** — optional, hides antialiasing hairlines between adjacent faces (off by default)
+- **Seam stroke** — hides antialiasing hairlines between adjacent faces (on by default; turn off for dimensionally exact output)
 
 Both previews are **coupled**: zoom with the mouse wheel, drag to pan — Fusion view and SVG
 result move together, so you can compare them 1:1. The SVG re-renders sharply at every zoom
@@ -190,7 +190,7 @@ The exporter also works headless, without the GUI:
 python export_svg.py                        # view from the Fusion camera (auto)
 python export_svg.py --view front           # fixed front view
 python export_svg.py -o drawing.svg         # custom file name
-python export_svg.py --seam-mm 0.1          # seam stroke against antialiasing seams
+python export_svg.py --seam-mm 0            # no seam stroke (dimensionally exact)
 python export_svg.py --texture-mode vector  # trace material textures
 ```
 
@@ -198,7 +198,7 @@ python export_svg.py --texture-mode vector  # trace material textures
 |---|---|---|
 | `-o`, `--output` | `<document>[-<view>].svg` | target SVG file |
 | `--view` | `auto` | `auto`, `top`, `bottom`, `front`, `back`, `right`, `left` |
-| `--seam-mm` | `0` (off) | seam stroke width in mm against antialiasing seams |
+| `--seam-mm` | `0.1` | seam stroke width in mm against antialiasing seams; `0` = off |
 | `--tol-mm` | `0.01` | curve sampling tolerance in mm |
 | `--decal-opacity` | from Fusion | override opacity of all decals (0..1) |
 | `--trace-decals` | off | trace decals into vector paths |
@@ -350,7 +350,7 @@ Alles, was du jetzt änderst, baut die Vorschau in etwa 0,05 Sekunden aus dem Ca
 - **Aufkleber** — Deckkraft, oder als Vektorpfade tracen
 - **3D Fase** — aktivieren, Lichtrichtung und Stärke einstellen
 - **Verdeckte Flächen** — komplett überdeckte Flächen entfernen (Standard an)
-- **Naht-Stroke** — optional, überdeckt Antialiasing-Haarlinien zwischen angrenzenden Flächen (Standard aus)
+- **Naht-Stroke** — überdeckt Antialiasing-Haarlinien zwischen angrenzenden Flächen (Standard an; für maßhaltige Ausgabe abschaltbar)
 
 Beide Vorschauen sind **gekoppelt**: Mausrad zoomt, Ziehen verschiebt — Fusion-Ansicht und
 SVG-Ergebnis laufen synchron, du kannst also 1:1 vergleichen. Das SVG wird bei jeder
@@ -445,7 +445,7 @@ Der Exporter läuft auch ohne GUI:
 python export_svg.py                        # Ansicht aus der Fusion-Kamera (auto)
 python export_svg.py --view front           # feste Vorderansicht
 python export_svg.py -o zeichnung.svg       # eigener Dateiname
-python export_svg.py --seam-mm 0.1          # Naht-Stroke gegen Antialiasing-Nähte
+python export_svg.py --seam-mm 0            # ohne Naht-Stroke (maßhaltig)
 python export_svg.py --texture-mode vector  # Material-Texturen vektorisieren
 ```
 
@@ -453,7 +453,7 @@ python export_svg.py --texture-mode vector  # Material-Texturen vektorisieren
 |---|---|---|
 | `-o`, `--output` | `<Dokument>[-<Ansicht>].svg` | Ziel-SVG-Datei |
 | `--view` | `auto` | `auto`, `top`, `bottom`, `front`, `back`, `right`, `left` |
-| `--seam-mm` | `0` (aus) | Breite des Naht-Strokes in mm gegen Antialiasing-Nähte |
+| `--seam-mm` | `0.1` | Breite des Naht-Strokes in mm gegen Antialiasing-Nähte; `0` = aus |
 | `--tol-mm` | `0.01` | Sampling-Toleranz für Kurven in mm |
 | `--decal-opacity` | Wert aus Fusion | Deckkraft aller Aufkleber überschreiben (0..1) |
 | `--trace-decals` | aus | Aufkleber zu Vektorpfaden tracen |
