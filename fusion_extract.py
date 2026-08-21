@@ -22,8 +22,20 @@ import tempfile
 import adsk.core
 import adsk.fusion
 
-PROGRESS_FILE = os.path.join(tempfile.gettempdir(), "fusion_svg_progress.txt")
-PARTIAL_FILE = os.path.join(tempfile.gettempdir(), "fusion_svg_partial.jsonl")
+# Kennung des aufrufenden Programmlaufs; wird von export_svg.py ersetzt.
+# Ohne sie wuerden zwei gleichzeitig laufende Instanzen in dieselben
+# Temp-Dateien schreiben und sich gegenseitig die Daten verfaelschen.
+SESSION = "0"
+
+
+def temp_file(kind, extension):
+    """Temp-Pfad dieses Laufs — dieselbe Regel wie export_svg.temp_file()."""
+    return os.path.join(tempfile.gettempdir(),
+                        "fusion_svg_%s_%s.%s" % (kind, SESSION, extension))
+
+
+PROGRESS_FILE = temp_file("progress", "txt")
+PARTIAL_FILE = temp_file("partial", "jsonl")
 
 STROKE_TOL_CM = 0.001  # Kurven-Sampling-Toleranz (0.001 cm = 10 um)
 NZ_EPS = 0.01          # minimale Zum-Betrachter-Komponente der Flaechennormale
@@ -601,7 +613,7 @@ def run(_context: str):
     # der MCP-Server kappt print-Ausgaben bei 1 MiB, grosse Designs
     # sprengen das locker. Fusion laeuft lokal, das CLI liest die Datei.
     payload = json.dumps(out, separators=(",", ":"))
-    result_path = os.path.join(tempfile.gettempdir(), "fusion_svg_export.json")
+    result_path = temp_file("export", "json")
     with open(result_path, "w", encoding="utf-8") as handle:
         handle.write(payload)
     print(json.dumps({"resultFile": result_path, "bytes": len(payload)}))

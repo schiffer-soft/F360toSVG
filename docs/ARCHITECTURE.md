@@ -18,18 +18,22 @@ der [README](../README.md).
 | `svg_convert.py` | SVG → PNG/JPG/PDF/AI (Edge headless) |
 | `fusion_mcp_client.py` | Minimaler MCP-Client (streamable HTTP, nur urllib) |
 | `build_exe.bat` | Baut die portable EXE (PyInstaller) |
+| `check_build_env.py` | Prüft vor dem Build, ob alle Pakete da sind |
+| `docs/TODO.md` | Was bewusst noch offen ist, samt Begründung |
+| `requirements.txt` | Laufzeit-Pakete mit festen Versionen |
+| `requirements-dev.txt` | Zusätzlich PyInstaller (nur zum Bauen) |
 | `SVG-Export-GUI.bat` | GUI aus dem Quellcode starten |
 | `SVG-Export.bat` | CLI-Export per Doppelklick |
 | `%APPDATA%\F360toSVG\color_overrides.json` | Dokument-Profile: Farben + Einstellungen (automatisch angelegt) |
-| `%APPDATA%\F360toSVGpp_settings.json` | Programmweite Kleinigkeiten, z. B. zuletzt benutzter Ausgabeordner |
+| `%APPDATA%\F360toSVG\app_settings.json` | Programmweite Kleinigkeiten, z. B. zuletzt benutzter Ausgabeordner |
 
 ## Ablauf
 
 1. **Verbindung:** `export_svg.py` spricht den lokalen Fusion MCP Server an
    und schickt `fusion_extract.py` als Skript an das Tool
    `fusion_mcp_execute` — es läuft damit direkt in der Fusion-API.
-   Konstanten (`VIEW`, `STROKE_TOL_CM`) werden vorher per Regex im
-   Skripttext ersetzt.
+   Konstanten (`VIEW`, `STROKE_TOL_CM`, `SESSION`, `MESSAGES`) werden
+   vorher per Regex im Skripttext ersetzt.
 
 2. **Sichtbarkeit:** Eine Fläche gilt als sichtbar, wenn ihre Normale
    irgendwo eine Komponente **zum Betrachter** hat (`> 0.01`).
@@ -96,11 +100,40 @@ der Vorschau — die Wartezeit fuehlt sich deutlich kuerzer an.
 
 Die print-Ausgabe des MCP-Servers wird bei ~1 MiB gekappt — große Designs
 sprengen das locker. Das Fusion-Skript schreibt sein Ergebnis deshalb in
-eine Temp-Datei (`fusion_svg_export.json`) und printet nur deren Pfad.
-Zusätzlich schreibt es Fortschritt (`fusion_svg_progress.txt`) und
-Teilergebnisse pro Körper (`fusion_svg_partial.jsonl`); die GUI liest
-beide per Daemon-Thread mit und baut daraus die Live-Vorschau während
-der Extraktion.
+eine Temp-Datei und printet nur deren Pfad. Zusätzlich schreibt es
+Fortschritt und Teilergebnisse pro Körper; die GUI liest beide per
+Daemon-Thread mit und baut daraus die Live-Vorschau während der
+Extraktion.
+
+### Temp-Dateien pro Programmlauf
+
+Alle Dateien im Temp-Ordner tragen eine **Sitzungskennung** aus PID und
+zwei Zufallsbytes (`export_svg.SESSION`), vergeben beim Programmstart:
+
+| Name | schreibt | liest |
+|---|---|---|
+| `fusion_svg_export_<Sitzung>.json` | Fusion | GUI/CLI |
+| `fusion_svg_progress_<Sitzung>.txt` | Fusion | GUI |
+| `fusion_svg_partial_<Sitzung>.jsonl` | Fusion | GUI |
+| `fusion_svg_shot_<Sitzung>.png` | Fusion | GUI |
+| `fusion_svg_clip_<Sitzung>.png` | GUI | PowerShell |
+
+Vorher hatten alle feste Namen. Zwei gleichzeitig gestartete Instanzen
+schrieben damit in dieselben Dateien — im schlimmsten Fall las die eine
+das Extraktionsergebnis der anderen und exportierte deren Geometrie, ohne
+dass es auffiel. Die Kennung enthält Zufall, weil Windows PIDs nach dem
+Prozessende wiederverwendet.
+
+Fusion läuft in einem eigenen Prozess und kennt unsere PID nicht — sie
+wird mit `export_svg.with_session()` in den Skripttext eingesetzt
+(`SESSION = "0"` → `SESSION = "<PID>-<hex>"`), genauso wie `VIEW` und
+`MESSAGES`. Das gilt auch für das Screenshot-Skript in `gui.py`.
+
+Aufgeräumt wird zweimal: `cleanup_session_temp_files()` löscht beim
+Beenden die eigenen Dateien, `cleanup_stale_temp_files()` beim Start alle
+`fusion_svg_*` älter als 24 Stunden. Die Altersgrenze ist wichtig — sonst
+würde der Neustart der einen Instanz einer zweiten, parallel laufenden
+die Dateien unter den Füßen wegziehen.
 
 ## Textur-Appearances
 

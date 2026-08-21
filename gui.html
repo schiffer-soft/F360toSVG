@@ -604,6 +604,19 @@ function t(key) {
   return (I18N[lang] && I18N[lang][key]) || I18N.de[key] || key;
 }
 
+// Fremdtext fuer innerHTML entschaerfen. Koerpernamen kommen aus dem
+// Fusion-Dokument und koennen alles enthalten — ohne das hier bricht ein
+// Name wie '"><img src=x onerror=...>' aus dem Attribut aus und fuehrt
+// Skript in der WebView aus, die vollen Zugriff auf pywebview.api hat.
+function esc(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 // Schema-Feld je Sprache: label/label_en, help/help_en
 function pickL(entry, field) {
   const lang = (typeof App !== "undefined" && App.lang) || "de";
@@ -1271,11 +1284,12 @@ const App = {
         ? entry.bodies.slice(0, 2).join(", ") + " +" + (entry.bodies.length - 2)
         : entry.bodies.join(", ");
       row.innerHTML =
-        '<button class="swatch" style="background:' + entry.color +
-        '" title="' + t("resetTo") + entry.color + '"></button>' +
+        '<button class="swatch" style="background:' + esc(entry.color) +
+        '" title="' + esc(t("resetTo") + entry.color) + '"></button>' +
         '<span class="arrow">→</span>' +
-        '<input type="color" value="' + (kept || entry.color) + '">' +
-        '<div class="cnames" title="' + entry.bodies.join(", ") + '">' + names + "</div>";
+        '<input type="color" value="' + esc(kept || entry.color) + '">' +
+        '<div class="cnames" title="' + esc(entry.bodies.join(", ")) + '">' +
+        esc(names) + "</div>";
       const picker = row.querySelector("input");
       picker.addEventListener("input", () => {
         this.setOverride(row, entry.color, picker.value);
