@@ -335,6 +335,58 @@ def loop_points(loop, u_axis, v_axis):
     ]
 
 
+def band_info(face, axes):
+    """Anfang/Mitte/Ende einer Fasen-Bahn (Spline-Fase) fuer den Verlauf.
+
+    Fuer NurbsSurface-Fasen: projizierter Punkt (mm) + Normale
+    (Bildraum) an beiden Enden entlang der laengeren Parameterrichtung
+    und in der Mitte. Der Builder spannt daraus einen Linearverlauf,
+    dessen Endtoene exakt zu den flach schattierten Nachbarfasen passen
+    — sonst gibt es einen Farbsprung an der Naht.
+    """
+    u_axis, v_axis, d_axis = axes
+    evaluator = face.evaluator
+    param_range = evaluator.parametricRange()
+    if not param_range:
+        return None
+
+    def sample(u, v):
+        p2 = adsk.core.Point2D.create(u, v)
+        ok, pt = evaluator.getPointAtParameter(p2)
+        if not ok:
+            return None
+        ok, nrm = evaluator.getNormalAtParameter(p2)
+        if not ok:
+            return None
+        point = (pt.x, pt.y, pt.z)
+        coords = (nrm.x, nrm.y, nrm.z)
+        return [
+            round(u_axis[1] * point[u_axis[0]] * 10.0, COORD_DECIMALS),
+            round(v_axis[1] * point[v_axis[0]] * 10.0, COORD_DECIMALS),
+            round(u_axis[1] * coords[u_axis[0]], 4),
+            round(v_axis[1] * coords[v_axis[0]], 4),
+            round(d_axis[1] * coords[d_axis[0]], 4),
+        ]
+
+    u0, u1 = param_range.minPoint.x, param_range.maxPoint.x
+    v0, v1 = param_range.minPoint.y, param_range.maxPoint.y
+    um, vm = (u0 + u1) / 2.0, (v0 + v1) / 2.0
+    along_u = (sample(u0, vm), sample(um, vm), sample(u1, vm))
+    along_v = (sample(um, v0), sample(um, vm), sample(um, v1))
+
+    def length2(triple):
+        start, _, end = triple
+        if not (start and end):
+            return -1.0
+        return (start[0] - end[0]) ** 2 + (start[1] - end[1]) ** 2
+
+    best = along_u if length2(along_u) >= length2(along_v) else along_v
+    if length2(best) <= 0:
+        return None
+    start, mid, end = best
+    return {"a": start, "m": mid, "b": end}
+
+
 def depth_range(bounding_box, d_axis):
     """Tiefenbereich (zum Betrachter) einer Bounding Box in mm."""
     axis, sign = d_axis
@@ -374,6 +426,14 @@ def visible_faces(body, axes):
                 round(v_axis[1] * coords[v_axis[0]], 4),
                 round(d_axis[1] * coords[d_axis[0]], 4),
             ]
+        # Spline-Fasen: Bahn-Enden + Mitte fuer den Fasen-Verlauf
+        if entry["surface"] == "NurbsSurface":
+            try:
+                band = band_info(face, axes)
+                if band:
+                    entry["band"] = band
+            except Exception:
+                pass  # ohne Bahn faellt der Builder auf Flachschattierung zurueck
         # Ringfasen (Kegel/Torus): Zentrum + Achsrichtung, damit auch
         # TEIL-Ringe den richtigen Ausschnitt des Lichtverlaufs bekommen
         if entry["surface"] in ("Cone", "Torus"):

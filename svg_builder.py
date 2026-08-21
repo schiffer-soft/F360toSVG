@@ -171,6 +171,50 @@ def _ring_gradient(gradient_id: str, color: str, normal: list,
     return definition, f"url(#{gradient_id})"
 
 
+def _band_gradient(gradient_id: str, color: str, band: dict,
+                   light_deg: float, strength: float,
+                   min_x: float, max_y: float) -> tuple[str, str] | None:
+    """(defs-Eintrag, fill-Referenz) fuer eine Spline-Fase (Bahn-Verlauf).
+
+    Der Verlauf laeuft von Bahnanfang zu Bahnende; die Stopp-Farben
+    kommen aus den dort gemessenen Normalen. An den Naehten zu flach
+    schattierten Nachbarfasen stimmt der Ton dadurch exakt — ein
+    einzelner Ton fuer die ganze Bahn erzeugte dort einen Farbsprung.
+    Ein Mittel-Stopp (Normale in Bahnmitte) faengt die Kruemmung ein.
+    """
+    start, mid, end = band.get("a"), band.get("m"), band.get("b")
+    if not (start and end):
+        return None
+    ax, ay = start[0] - min_x, max_y - start[1]
+    bx, by = end[0] - min_x, max_y - end[1]
+    dx, dy = bx - ax, by - ay
+    axis_len2 = dx * dx + dy * dy
+    if axis_len2 < 1e-9:
+        return None
+    stops = [
+        f'<stop offset="0" stop-color="'
+        f'{shade_fase_color(color, start[2:5], light_deg, strength)}"/>'
+    ]
+    if mid:
+        mx, my = mid[0] - min_x, max_y - mid[1]
+        offset = ((mx - ax) * dx + (my - ay) * dy) / axis_len2
+        if 0.02 < offset < 0.98:
+            stops.append(
+                f'<stop offset="{offset:.3f}" stop-color="'
+                f'{shade_fase_color(color, mid[2:5], light_deg, strength)}"/>'
+            )
+    stops.append(
+        f'<stop offset="1" stop-color="'
+        f'{shade_fase_color(color, end[2:5], light_deg, strength)}"/>'
+    )
+    definition = (
+        f'    <linearGradient id="{gradient_id}" gradientUnits="userSpaceOnUse" '
+        f'x1="{ax:.3f}" y1="{ay:.3f}" x2="{bx:.3f}" y2="{by:.3f}">'
+        + "".join(stops) + "</linearGradient>"
+    )
+    return definition, f"url(#{gradient_id})"
+
+
 def _ring_radius(loops: list, center: list) -> float:
     """Aeusserer Ringradius = groesster Konturabstand zum Zentrum (mm)."""
     radius = 0.0
@@ -265,7 +309,8 @@ def _collect_shapes(data: dict) -> list[tuple]:
                         body["name"], body["color"], face["loops"],
                         face.get("surface", ""), face.get("normal"),
                         face.get("ringCenter"), face.get("ringAxisD"),
-                        face.get("ringConcave"), body.get("textureTile"),
+                        face.get("ringConcave"), face.get("band"),
+                        body.get("textureTile"),
                     ),
                 ))
         for decal in data.get("decals", []):
@@ -387,7 +432,7 @@ def build_svg(
             paths.append(element)
             continue
         (body_name, color, loops, surface, normal,
-         ring_center, ring_axis_d, ring_concave, tex_tile) = payload
+         ring_center, ring_axis_d, ring_concave, band, tex_tile) = payload
         if normal:
             normals_present = True
         gradient_paint = None
@@ -402,6 +447,22 @@ def build_svg(
                     concave=bool(ring_concave),
                 )
                 defs.append(definition)
+                shaded_count += 1
+                fase_shaded = True
+            elif surface == "NurbsSurface" and band and _tilt_ok(normal):
+                # Spline-Fase: Verlauf entlang der Bahn — Endtoene passen
+                # exakt zu den flach schattierten Nachbarfasen
+                result = _band_gradient(
+                    f"fase-band-{index}", str(color), band,
+                    light_deg, fase_strength / 100.0, min_x, max_y,
+                )
+                if result:
+                    definition, gradient_paint = result
+                    defs.append(definition)
+                else:  # degenerierte Bahn -> Flachschattierung
+                    color = shade_fase_color(
+                        str(color), normal, light_deg, fase_strength / 100.0
+                    )
                 shaded_count += 1
                 fase_shaded = True
             elif _is_fase(surface, normal):
