@@ -24,6 +24,12 @@ takes every face that points at you, and stacks those faces back-to-front in the
 The result is a true-to-scale vector file (mm, 1:1) that looks like the rendered model —
 ready for multi-color 3D-print signs, cut files, stickers, thumbnails or documentation.
 
+| Fusion 360 | F360toSVG output |
+|---|---|
+| <img src="docs/compare-fusion.png" alt="Model in Fusion 360" width="100%"> | <img src="docs/compare-svg.png" alt="Exported SVG" width="100%"> |
+
+Same colors, same textures, same layering — as a vector file.
+
 - **Colors from Fusion** — every body's appearance color, override any of them live
 - **Material textures** — as an average color, a tiled image, or traced into vector patterns
 - **Decals** — embedded at the right place and size, optionally vectorized
@@ -124,6 +130,18 @@ If a body's appearance uses an image texture instead of a plain color, you have 
 | **Image (pattern)** | the tile is embedded as PNG and tiled — exact, but pixelated when zoomed far in |
 | **Vectorized** | the tile is reduced to a few colors and traced into vector paths — scales losslessly |
 
+*Average color* — the speckled carbon look becomes a flat dark surface:
+
+<img src="docs/texture-average.png" alt="Texture mode: average color" width="100%">
+
+*Image (pattern)* — the original tile, placed as in Fusion:
+
+<img src="docs/texture-image.png" alt="Texture mode: tiled image" width="100%">
+
+*Vectorized* — traced tile, here at 60 % scale and +55 % brightness:
+
+<img src="docs/texture-vector.png" alt="Texture mode: vectorized" width="100%">
+
 Tile size, rotation and the anchor point of the tiling grid are read from Fusion, so the
 pattern sits where it does in the model. **Scale** (10–400 %) and **Brightness**
 (−100…+100 %) let you adapt it, and **Texture colors** decides whether the original image
@@ -146,6 +164,10 @@ runs 0–360° (0 = bottom, 90 = right, 180 = top, 270 = left), **Strength** 0�
 Ring chamfers around cylindrical edges get a real gradient along the light direction, so a
 knob or a rounded corner looks like a rendered part rather than a flat ring. On textured
 bodies the bevels stay pattern-free and show the shaded average color instead.
+
+| Fusion 360 | SVG with 3D bevel |
+|---|---|
+| <img src="docs/bevel-fusion.png" alt="Chamfers in Fusion 360" width="100%"> | <img src="docs/bevel-svg.png" alt="Chamfers shaded in the SVG" width="100%"> |
 
 #### Hidden face removal
 
@@ -245,6 +267,12 @@ Appearance ihres Körpers gefüllt.
 Heraus kommt eine maßstabsgetreue Vektordatei (mm, 1:1), die aussieht wie das gerenderte
 Modell — fertig für Multi-Color-3D-Druck-Schilder, Schnittdateien, Aufkleber, Vorschaubilder
 oder Dokumentation.
+
+| Fusion 360 | Ergebnis von F360toSVG |
+|---|---|
+| <img src="docs/compare-fusion.png" alt="Modell in Fusion 360" width="100%"> | <img src="docs/compare-svg.png" alt="Exportiertes SVG" width="100%"> |
+
+Gleiche Farben, gleiche Texturen, gleiche Schichtung — als Vektordatei.
 
 - **Farben aus Fusion** — jede Appearance-Farbe, jede davon live überschreibbar
 - **Material-Texturen** — als Durchschnittsfarbe, gekacheltes Bild oder Vektor-Muster
@@ -348,6 +376,18 @@ drei Modi:
 | **Bild (Muster)** | Die Kachel wird als PNG eingebettet und gekachelt — exakt, aber beim starken Zoomen pixelig |
 | **Vektorisiert** | Die Kachel wird auf wenige Farben reduziert und zu Vektorpfaden getract — skaliert verlustfrei |
 
+*Durchschnittsfarbe* — aus der gesprenkelten Carbon-Optik wird eine glatte dunkle Fläche:
+
+<img src="docs/texture-average.png" alt="Textur-Modus: Durchschnittsfarbe" width="100%">
+
+*Bild (Muster)* — die Originalkachel, platziert wie in Fusion:
+
+<img src="docs/texture-image.png" alt="Textur-Modus: gekacheltes Bild" width="100%">
+
+*Vektorisiert* — getracte Kachel, hier mit 60 % Skalierung und +55 % Helligkeit:
+
+<img src="docs/texture-vector.png" alt="Textur-Modus: vektorisiert" width="100%">
+
 Kachelgröße, Drehung und der Ankerpunkt des Kachelrasters kommen aus Fusion, das Muster
 sitzt also dort, wo es im Modell sitzt. **Skalierung** (10–400 %) und **Helligkeit**
 (−100…+100 %) passen es an, und **Texturfarben** entscheidet, ob die Originalfarben des
@@ -372,6 +412,10 @@ Ringfasen an Zylinderkanten bekommen einen echten Verlauf entlang der Lichtricht
 Drehknopf oder eine gerundete Ecke sieht dadurch aus wie ein gerendertes Teil und nicht wie
 ein flacher Ring. Bei texturierten Körpern bleiben die Fasen musterfrei und zeigen die
 schattierte Durchschnittsfarbe.
+
+| Fusion 360 | SVG mit 3D Fase |
+|---|---|
+| <img src="docs/bevel-fusion.png" alt="Fasen in Fusion 360" width="100%"> | <img src="docs/bevel-svg.png" alt="Fasen im SVG schattiert" width="100%"> |
 
 #### Verdeckte Flächen entfernen
 
