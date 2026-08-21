@@ -1,0 +1,16 @@
+# Laufzeit-Abhaengigkeiten von F360toSVG (Python 3.10+, 64-bit, Windows)
+#
+# Versionen sind festgeschrieben, damit ein Build in einem halben Jahr
+# dasselbe Ergebnis liefert wie heute. Zum Anheben: Version aendern,
+# GUI und einen Export durchtesten, dann committen.
+#
+#   py -3 -m pip install -r requirements.txt
+#
+# Jedes Paket schaltet nur sein eigenes Feature frei — fehlt es, warnt
+# das Protokoll und der Rest laeuft weiter. Ausnahme: pywebview, ohne
+# das die Oberflaeche gar nicht startet (das CLI export_svg.py schon).
+
+pywebview==6.2.1   # Programmfenster (WebView2); Pflicht fuer die GUI
+Pillow==12.3.0     # Textur-Durchschnittsfarben, Kacheln, Screenshot-Zuschnitt
+shapely==2.1.2     # Verdeckte Flaechen wegrechnen (Option "Verdeckte entfernen")
+vtracer==0.6.15    # Texturen und Decals vektorisieren (Modus "Vektorisiert")

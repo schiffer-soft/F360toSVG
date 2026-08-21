@@ -24,8 +24,11 @@ import io
 import json
 import math
 import mimetypes
+import os
 import re
 import sys
+import tempfile
+import time
 from pathlib import Path
 
 import i18n
@@ -53,6 +56,65 @@ SCRIPT_DIR = app_dir()
 EXTRACT_SCRIPT = resource_path("fusion_extract.py")
 INVALID_FILENAME_CHARS = r'<>:"/\|?*'
 DEFAULT_TOL_MM = 0.01
+
+# Kennung dieses Programmlaufs. Steckt in jedem Namen im Temp-Ordner, damit
+# sich zwei gleichzeitig laufende Instanzen nicht gegenseitig die Dateien
+# ueberschreiben — im schlimmsten Fall wuerde sonst die eine die Geometrie
+# der anderen exportieren, ohne dass es jemand merkt. PID plus Zufall, weil
+# Windows PIDs nach dem Prozessende wiederverwendet.
+SESSION = f"{os.getpid()}-{os.urandom(2).hex()}"
+
+TEMP_PREFIX = "fusion_svg_"
+TEMP_KINDS = {
+    "progress": "txt",    # Fortschrittszeilen aus Fusion
+    "partial": "jsonl",   # fertige Koerper fuer die Live-Vorschau
+    "export": "json",     # Extraktionsergebnis (zu gross fuer MCP-print)
+    "shot": "png",        # Viewport-Screenshot aus Fusion
+    "clip": "png",        # Zwischenablage-Umweg ueber PowerShell
+}
+TEMP_MAX_AGE_S = 24 * 3600  # danach gilt eine Restdatei als verwaist
+
+
+def temp_file(kind: str, session: str = SESSION) -> Path:
+    """Pfad einer Temp-Datei dieses Laufs (siehe TEMP_KINDS)."""
+    return Path(tempfile.gettempdir()) / (
+        f"{TEMP_PREFIX}{kind}_{session}.{TEMP_KINDS[kind]}"
+    )
+
+
+def cleanup_session_temp_files(session: str = SESSION) -> int:
+    """Eigene Temp-Dateien am Ende wegraeumen; gibt die Anzahl zurueck.
+
+    Frueher trug jeder Lauf denselben Namen und ueberschrieb den Rest des
+    vorigen. Mit eigener Kennung je Lauf muss dafuer jemand zustaendig
+    sein, sonst sammelt sich der Temp-Ordner voll.
+    """
+    removed = 0
+    for kind in TEMP_KINDS:
+        try:
+            temp_file(kind, session).unlink()
+            removed += 1
+        except OSError:
+            pass  # nicht jeder Lauf erzeugt jede Datei
+    return removed
+
+
+def cleanup_stale_temp_files(max_age_s: float = TEMP_MAX_AGE_S) -> int:
+    """Reste abgestuerzter Laeufe entfernen; gibt die Anzahl zurueck.
+
+    Nur alte Dateien: eine parallel laufende zweite Instanz soll nichts
+    von ihren eigenen, frischen Dateien verlieren.
+    """
+    now = time.time()
+    removed = 0
+    for path in Path(tempfile.gettempdir()).glob(TEMP_PREFIX + "*"):
+        try:
+            if path.is_file() and now - path.stat().st_mtime > max_age_s:
+                path.unlink()
+                removed += 1
+        except OSError:
+            pass  # gehoert vielleicht einem anderen Nutzer — nicht unser Problem
+    return removed
 
 
 class ExportError(RuntimeError):
@@ -158,6 +220,17 @@ def _fusion_messages() -> str:
     return json.dumps(texts, ensure_ascii=True, sort_keys=True)
 
 
+def with_session(script: str, session: str = SESSION) -> str:
+    """Sitzungskennung in ein Fusion-Skript einsetzen.
+
+    Fusion laeuft in einem eigenen Prozess und kennt unsere PID nicht —
+    sie muss mit dem Skripttext hinueber, sonst schreibt Fusion in
+    andere Dateien als die, die wir hier mitlesen.
+    """
+    return _substitute_constant(
+        script, r'^SESSION = "[A-Za-z0-9_-]*"', f'SESSION = "{session}"')
+
+
 def load_extract_script(tolerance_mm: float, view: str) -> str:
     """Extraktionsskript laden; Toleranz, Ansicht und Texte einsetzen."""
     if not EXTRACT_SCRIPT.is_file():
@@ -175,11 +248,12 @@ def load_extract_script(tolerance_mm: float, view: str) -> str:
         r'^VIEW = "[a-z]+"',
         f'VIEW = "{view}"',
     )
-    return _substitute_constant(
+    script = _substitute_constant(
         script,
         r"^MESSAGES = \{\}",
         "MESSAGES = " + _fusion_messages(),
     )
+    return with_session(script)
 
 
 TEXTURE_SAMPLE_SIZE = 256  # Kantenlaenge, auf die Texturen vorm Mitteln verkleinert werden
@@ -716,6 +790,7 @@ def run_export(
 
 def main(argv: list[str]) -> int:
     args = parse_args(argv)
+    cleanup_stale_temp_files()
     try:
         run_export(
             view=args.view,
@@ -735,6 +810,8 @@ def main(argv: list[str]) -> int:
     except (ExportError, FusionMcpError) as exc:
         print(t("err.prefix", error=exc), file=sys.stderr)
         return 1
+    finally:
+        cleanup_session_temp_files()
     return 0
 
 

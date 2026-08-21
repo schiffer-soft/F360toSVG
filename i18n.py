@@ -51,6 +51,12 @@ MESSAGES: dict[str, tuple[str, str]] = {
         "Warning: shapely is missing — hidden faces stay in the SVG "
         "(py -3 -m pip install shapely).",
     ),
+    "warn.live_preview": (
+        "Warnung: Live-Vorschau übersprungen ({error}). "
+        "Die fertige Vorschau kommt am Ende der Extraktion.",
+        "Warning: live preview skipped ({error}). "
+        "The final preview arrives when the extraction is done.",
+    ),
     "warn.svg_convert_missing": (
         "Warnung: svg_convert.py fehlt — es bleibt beim SVG.",
         "Warning: svg_convert.py is missing — keeping the SVG.",
@@ -245,6 +251,11 @@ MESSAGES: dict[str, tuple[str, str]] = {
         "Windows dialog failed: {error}",
     ),
     "err.cancelled": ("Abgebrochen.", "Cancelled."),
+    "err.url_blocked": (
+        "Link nicht geöffnet — {url} gehört nicht zu den Adressen "
+        "dieses Programms.",
+        "Link not opened — {url} is not one of this program's addresses.",
+    ),
 
     # --- Verbindung zu Fusion ---------------------------------------------
     "mcp.unreachable": (

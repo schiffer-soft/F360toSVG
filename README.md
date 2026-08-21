@@ -217,9 +217,17 @@ python export_svg.py --texture-mode vector  # trace material textures
 | `--url` | `http://127.0.0.1:27182/mcp` | Fusion MCP server URL |
 | `--dump-json` | – | also save the extracted raw data as JSON |
 
-Running from source needs Python 3.10+ (64-bit) plus `pywebview`, `Pillow`, `shapely` and
-`vtracer`. Each package only gates its own feature — without it you get a warning in the
-log and the rest keeps working. `build_exe.bat` builds the portable executable.
+Running from source needs Python 3.10+ (64-bit) and the pinned packages from
+`requirements.txt`:
+
+```
+py -3 -m pip install -r requirements.txt
+```
+
+Each package only gates its own feature — without it you get a warning in the log and the
+rest keeps working. `build_exe.bat` builds the portable executable; it additionally needs
+`requirements-dev.txt` (PyInstaller) and refuses to start if an optional package is
+missing, so an executable can never silently ship without one of its features.
 
 ### How it works
 
@@ -479,10 +487,18 @@ python export_svg.py --texture-mode vector  # Material-Texturen vektorisieren
 | `--url` | `http://127.0.0.1:27182/mcp` | URL des Fusion MCP Servers |
 | `--dump-json` | – | extrahierte Rohdaten zusätzlich als JSON speichern |
 
-Aus dem Quellcode gestartet braucht es Python 3.10+ (64-bit) sowie `pywebview`, `Pillow`,
-`shapely` und `vtracer`. Jedes Paket schaltet nur sein eigenes Feature frei — fehlt es,
-gibt es eine Warnung im Protokoll und der Rest läuft weiter. `build_exe.bat` baut die
-portable EXE.
+Aus dem Quellcode gestartet braucht es Python 3.10+ (64-bit) und die festgeschriebenen
+Pakete aus `requirements.txt`:
+
+```
+py -3 -m pip install -r requirements.txt
+```
+
+Jedes Paket schaltet nur sein eigenes Feature frei — fehlt es, gibt es eine Warnung im
+Protokoll und der Rest läuft weiter. `build_exe.bat` baut die portable EXE; dafür braucht
+es zusätzlich `requirements-dev.txt` (PyInstaller) und bricht ab, wenn ein optionales
+Paket fehlt — so kann keine EXE stillschweigend ohne eines ihrer Features ausgeliefert
+werden.
 
 ### Wie es funktioniert
 

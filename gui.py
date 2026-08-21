@@ -15,6 +15,7 @@ import os
 import sys
 import tempfile
 import threading
+import urllib.parse
 from pathlib import Path
 
 from export_svg import (
@@ -22,10 +23,14 @@ from export_svg import (
     DEFAULT_TOL_MM,
     ExportError,
     app_dir,
+    cleanup_session_temp_files,
+    cleanup_stale_temp_files,
     default_output_path,
     extract_data,
     finalize_svg,
     resource_path,
+    temp_file,
+    with_session,
 )
 import i18n
 from fusion_mcp_client import DEFAULT_URL, FusionMcpClient, FusionMcpError
@@ -36,7 +41,7 @@ from i18n import t
 SCRIPT_DIR = app_dir()
 GUI_HTML = resource_path("gui.html")
 WINDOW_TITLE = "Fusion 360 → SVG"
-APP_VERSION = "1.0.4"  # erscheint links in der Footerleiste
+APP_VERSION = "1.0.5"  # erscheint links in der Footerleiste
 GITHUB_REPO = "schiffer-soft/F360toSVG"
 
 
@@ -207,6 +212,15 @@ OPTION_SCHEMA = [
 
 OPTION_IDS = {entry["id"] for entry in OPTION_SCHEMA}
 
+def _ps_quote(text: str) -> str:
+    """Text fuer ein PowerShell-Literal in einfachen Anfuehrungszeichen.
+
+    Einfache Anfuehrungszeichen werden verdoppelt — sonst bricht schon
+    ein Benutzername wie "O'Brien" im Temp-Pfad das Kommando.
+    """
+    return str(text).replace("'", "''")
+
+
 # Screenshot mit eingepasster Kamera: fitten -> transparent rendern ->
 # Kamera sofort wiederherstellen (ohne Animation, minimaler Blip).
 # So zeigt die Fusion-Vorschau immer das ganze Modell — unabhaengig
@@ -216,6 +230,8 @@ import os
 import tempfile
 
 import adsk.core
+
+SESSION = "0"  # wird von export_svg.with_session() ersetzt
 
 
 def run(_context: str):
@@ -227,7 +243,8 @@ def run(_context: str):
     fitted.isFitView = True
     viewport.camera = fitted
     adsk.doEvents()
-    path = os.path.join(tempfile.gettempdir(), "fusion_svg_shot.png")
+    path = os.path.join(tempfile.gettempdir(),
+                        "fusion_svg_shot_%s.png" % SESSION)
     try:
         options = adsk.core.SaveImageFileOptions.create(path)
         options.width = 1600
@@ -283,7 +300,7 @@ class Api:
                 f"UI.appendLog({json.dumps(line)}, {json.dumps(kind)})"
             )
 
-    PROGRESS_FILE = Path(tempfile.gettempdir()) / "fusion_svg_progress.txt"
+    PROGRESS_FILE = temp_file("progress")
 
     @contextlib.contextmanager
     def _progress_tail(self):
@@ -395,7 +412,7 @@ class Api:
         except (OSError, ValueError) as exc:
             return {"ok": False, "error": str(exc)}
 
-    PARTIAL_FILE = Path(tempfile.gettempdir()) / "fusion_svg_partial.jsonl"
+    PARTIAL_FILE = temp_file("partial")
 
     @contextlib.contextmanager
     def _live_preview(self):
@@ -420,6 +437,7 @@ class Api:
             position = 0
             buffer = b""
             meta, bodies, dirty = None, [], False
+            reported = False  # Fehler nur einmal je Durchlauf melden
             while True:
                 try:
                     if self.PARTIAL_FILE.is_file():
@@ -450,8 +468,19 @@ class Api:
                             + json.dumps(result["svg"])
                             + f", {len(bodies)})"
                         )
-                    except Exception:
-                        pass  # Teilstand kann unbaubar sein — naechster Tick
+                    except Exception as exc:
+                        # Ein Teilstand kann unbaubar sein — der naechste
+                        # Tick versucht es erneut. Stillschweigend geht es
+                        # aber nicht: sonst bleibt die Vorschau einfach
+                        # leer und niemand weiss warum. Einmal pro
+                        # Durchlauf, sonst flutet es das Protokoll.
+                        if not reported:
+                            reported = True
+                            self._push_log(
+                                t("warn.live_preview",
+                                  error=f"{type(exc).__name__}: {exc}"),
+                                "err",
+                            )
                     dirty = False
                 if stop.is_set():
                     return
@@ -548,10 +577,29 @@ class Api:
                    or f"https://github.com/{GITHUB_REPO}/releases/latest",
         }
 
+    # Die Adressen der Footer-Links — mehr braucht open_url() nicht zu
+    # oeffnen. Subdomains sind erlaubt (api.github.com), Nachbarn mit
+    # aehnlichem Namen nicht (boese-github.com scheitert am Punkt).
+    ALLOWED_HOSTS = ("github.com", "schiffer-soft.de", "x.com", "paypal.me")
+
     def open_url(self, url: str) -> dict:
-        """Oeffnet einen Footer-Link im System-Browser (nie im GUI-Fenster)."""
-        if not isinstance(url, str) or not url.startswith(("http://", "https://")):
-            return {"ok": False, "error": f"Ungültige URL: {url!r}"}
+        """Oeffnet einen Footer-Link im System-Browser (nie im GUI-Fenster).
+
+        Bewusst eng: nur https/http auf die Adressen aus der Fusszeile.
+        Der Aufruf kommt aus dem Frontend, und ein Frontend, das jede
+        beliebige URL oeffnen darf, ist ein Hebel — auch wenn heute nur
+        fest im HTML stehende Links hier ankommen.
+        """
+        if not isinstance(url, str):
+            return {"ok": False, "error": t("err.url_blocked", url=url)}
+        parsed = urllib.parse.urlparse(url)
+        host = (parsed.hostname or "").lower()
+        allowed = parsed.scheme in ("http", "https") and any(
+            host == entry or host.endswith("." + entry)
+            for entry in self.ALLOWED_HOSTS
+        )
+        if not allowed:
+            return {"ok": False, "error": t("err.url_blocked", url=url)}
         import webbrowser
 
         webbrowser.open(url)
@@ -653,7 +701,8 @@ def run(_context: str):
         try:
             client = FusionMcpClient(url or DEFAULT_URL)
             client.connect()
-            shot_path = client.run_fusion_script(FIT_SCREENSHOT_SCRIPT).strip()
+            shot_path = client.run_fusion_script(
+                with_session(FIT_SCREENSHOT_SCRIPT)).strip()
             if not shot_path:
                 return {"ok": False, "error": "Fusion hat kein Bild erzeugt."}
             raw = Path(shot_path).read_bytes()
@@ -680,12 +729,13 @@ def run(_context: str):
                 png = buffer.getvalue()
         except ImportError:
             pass
-        clip_path = Path(tempfile.gettempdir()) / "fusion_svg_clip.png"
+        clip_path = temp_file("clip")
         try:
             clip_path.write_bytes(png)
             script = (
                 "Add-Type -AssemblyName System.Windows.Forms,System.Drawing; "
-                f"$img = [System.Drawing.Image]::FromFile('{clip_path}'); "
+                f"$img = [System.Drawing.Image]::FromFile("
+                f"'{_ps_quote(clip_path)}'); "
                 "[System.Windows.Forms.Clipboard]::SetImage($img); "
                 "$img.Dispose()"
             )
@@ -1022,9 +1072,7 @@ def run(_context: str):
         import subprocess
 
         label = self.FORMAT_LABELS.get(fmt, fmt.upper())
-
-        def quote(text: str) -> str:  # einfache Anfuehrungszeichen verdoppeln
-            return str(text).replace("'", "''")
+        quote = _ps_quote
 
         script = (
             "Add-Type -AssemblyName System.Windows.Forms; "
@@ -1067,6 +1115,10 @@ def main() -> int:
         )
         return 1
 
+    # Reste abgestuerzter Laeufe wegraeumen — die eigenen Dateien tragen
+    # eine eigene Kennung, alte bleiben sonst fuer immer im Temp-Ordner.
+    cleanup_stale_temp_files()
+
     api = Api()
     api._window = webview.create_window(
         WINDOW_TITLE,
@@ -1077,7 +1129,10 @@ def main() -> int:
         min_size=(1150, 700),
         background_color="#0d1017",
     )
-    webview.start()
+    try:
+        webview.start()
+    finally:
+        cleanup_session_temp_files()  # Fortschritt, Teilstand, Screenshot
     return 0
 
 
