@@ -93,8 +93,12 @@ RING_AXIS_MIN_D = 0.9  # Ringachse muss (fast) in Blickrichtung stehen
 def _is_fase(surface: str, normal: list | None) -> bool:
     # Flachschattierung: eine Kipprichtung = ein Farbwert. Auch der
     # Fallback fuer Ringe ohne brauchbares Zentrum/Achse.
+    # NurbsSurface: Fasen entlang gebogener Kanten (Splines) — die
+    # Normale variiert zwar ueber die Flaeche, aber ein Ton aus der
+    # Stichprobe passt besser zu den schattierten Nachbarfasen als
+    # gar keine Schattierung (Flaeche wirkte sonst "vergessen").
     return (
-        surface in ("Plane", "Cylinder", "Cone", "Torus")
+        surface in ("Plane", "Cylinder", "Cone", "Torus", "NurbsSurface")
         and _tilt_ok(normal)
     )
 

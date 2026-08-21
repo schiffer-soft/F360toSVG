@@ -136,7 +136,8 @@ Lambert-Schattierung mit fester Sonnenhöhe (`LIGHT_ELEVATION_DEG = 45`)
 Lichtvektor ergibt sich aus der Lichtrichtung (0 = unten, 90 = rechts,
 180 = oben, 270 = links).
 
-- **Flachschattierung** für ebene Fasen und gerade Verrundungsbänder:
+- **Flachschattierung** für ebene Fasen, gerade Verrundungsbänder und
+  Spline-Fasen (NurbsSurface, z. B. entlang gebogener Kanten):
   eine Kipprichtung = ein Farbwert.
 - **Ringfasen** (Kegel-/Torusmantel um eine Achse in Blickrichtung)
   bekommen einen `linearGradient` mit `gradientUnits="userSpaceOnUse"`,
