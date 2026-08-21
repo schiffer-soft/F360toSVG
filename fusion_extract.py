@@ -287,26 +287,46 @@ def _dist2(a, b):
 
 
 def loop_points(loop, u_axis, v_axis):
-    """Kanten eines Loops via CoEdges in Laufrichtung zu einem Polygon verbinden.
+    """Kanten eines Loops zu einem geschlossenen Polygon verketten.
 
-    Die Orientierung jedes Segments wird geometrisch bestimmt (welches Ende
-    schliesst an das Kettenende an?) — isOpposedToEdge dient nur als
-    Startorientierung, da die Flag bei manchen Kanten nicht zur
-    tatsaechlichen Anschlussrichtung passt (fuehrt sonst zu
-    selbstschneidenden Polygonen).
+    Weder die CoEdge-Reihenfolge noch isOpposedToEdge sind in der
+    Projektion verlaesslich. Frueher wurde die Reihenfolge fest
+    uebernommen und nur die Segment-Orientierung am naechstgelegenen
+    Ende korrigiert — bei hauchduennen Fasenbaendern liegen richtiges
+    und falsches Ende aber fast gleich nah, ein Fehlgriff erzeugte
+    Zickzack-Polygone mit Flaeche 0 (Fase "fehlt" im SVG). Deshalb:
+    erst alle Segmente sammeln, dann geometrisch verketten — es folgt
+    immer das Segment, dessen Ende dem Kettenende am naechsten liegt.
+    An sauberen Stosspunkten ist dieser Abstand ~0 und gewinnt eindeutig.
     """
-    points = []
+    segments = []
     for co_edge in loop.coEdges:
         segment = sample_edge(co_edge.edge, u_axis, v_axis)
         if not segment:
             continue
         if co_edge.isOpposedToEdge:
             segment = list(reversed(segment))
-        if points and _dist2(points[-1], segment[0]) > _dist2(points[-1], segment[-1]):
-            segment = list(reversed(segment))  # Anschluss-Korrektur
-        if points and _dist2(points[-1], segment[0]) < JOIN_DIST2_TOL_CM2:
+        segments.append(segment)
+    if not segments:
+        return []
+
+    points = list(segments.pop(0))
+    while segments:
+        best_index, best_reversed, best_dist = 0, False, None
+        for index, segment in enumerate(segments):
+            d_start = _dist2(points[-1], segment[0])
+            d_end = _dist2(points[-1], segment[-1])
+            if best_dist is None or d_start < best_dist:
+                best_index, best_reversed, best_dist = index, False, d_start
+            if d_end < best_dist:
+                best_index, best_reversed, best_dist = index, True, d_end
+        segment = segments.pop(best_index)
+        if best_reversed:
+            segment = list(reversed(segment))
+        if _dist2(points[-1], segment[0]) < JOIN_DIST2_TOL_CM2:
             segment = segment[1:]  # doppelten Stosspunkt vermeiden
         points.extend(segment)
+
     if len(points) > 1 and _dist2(points[0], points[-1]) < JOIN_DIST2_TOL_CM2:
         points = points[:-1]  # SVG 'Z' schliesst den Pfad selbst
     return [
