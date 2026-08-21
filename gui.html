@@ -1267,13 +1267,13 @@ const App = {
 
   saveSettings() {
     try {
-      localStorage.setItem("svgExportSettings.v2", JSON.stringify(this.collectOptions()));
+      localStorage.setItem("svgExportSettings.v3", JSON.stringify(this.collectOptions()));
     } catch (e) { /* localStorage optional */ }
   },
 
   restoreSettings() {
     let saved = null;
-    try { saved = JSON.parse(localStorage.getItem("svgExportSettings.v2")); } catch (e) {}
+    try { saved = JSON.parse(localStorage.getItem("svgExportSettings.v3")); } catch (e) {}
     if (saved) this.applyOptionValues(saved);
   },
 
