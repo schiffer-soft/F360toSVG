@@ -2,12 +2,21 @@
 __pycache__/
 *.pyc
 
+# PyInstaller-Build (build_exe.bat)
+build/
+dist/
+*.spec
+
 # Export-Ergebnisse (werden aus Fusion generiert)
 *.svg
 *.png
 *.jpg
 *.pdf
 *.ai
+
+# App-Icon und Doku-Screenshots sind Quellmaterial, kein Export
+!F360toSVG.png
+!docs/*.png
 
 # Persoenliche Dokument-Profile (Farben + Einstellungen je Zeichnung)
 color_overrides.json
