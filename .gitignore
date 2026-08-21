@@ -21,5 +21,8 @@ dist/
 # Persoenliche Dokument-Profile (Farben + Einstellungen je Zeichnung)
 color_overrides.json
 
+# Lokales Testverzeichnis (EXE-Tests, Beispielbilder)
+test/
+
 # Debug-Dumps
 faces.json
