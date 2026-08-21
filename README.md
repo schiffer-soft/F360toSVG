@@ -57,8 +57,11 @@ Download the latest `F360toSVG-X.X.X-portable.exe` from the
 > click *More info → Run anyway*. First start takes 2–3 seconds (it unpacks itself),
 > after that it opens immediately.
 
-Settings and color profiles are stored in `color_overrides.json` **next to the .exe** —
-move it along if you relocate the program.
+Settings and color profiles are stored in
+`%APPDATA%\F360toSVG\color_overrides.json`, so they survive moving the program or
+switching to a newer version. The app quietly checks GitHub for a newer release about
+30 seconds after start and, if there is one, shows a small hint in the footer — no popup,
+no nagging.
 
 ### How to use it
 
@@ -301,8 +304,11 @@ Lade die aktuelle `F360toSVG-X.X.X-portable.exe` von der
 > *Weitere Informationen → Trotzdem ausführen*. Der erste Start dauert 2–3 Sekunden
 > (Selbstentpacken), danach öffnet das Fenster sofort.
 
-Einstellungen und Farbprofile liegen in `color_overrides.json` **neben der EXE** — beim
-Umziehen einfach mitkopieren.
+Einstellungen und Farbprofile liegen in
+`%APPDATA%\F360toSVG\color_overrides.json` und überleben damit das Verschieben des
+Programms und den Wechsel auf eine neuere Version. Etwa 30 Sekunden nach dem Start prüft
+das Programm still, ob es auf GitHub eine neuere Version gibt, und zeigt gegebenenfalls
+einen kleinen Hinweis in der Fußzeile — kein Popup, kein Nerven.
 
 ### Bedienung
 

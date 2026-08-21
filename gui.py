@@ -33,7 +33,29 @@ from fusion_mcp_client import DEFAULT_URL, FusionMcpClient, FusionMcpError
 SCRIPT_DIR = app_dir()
 GUI_HTML = resource_path("gui.html")
 WINDOW_TITLE = "Fusion 360 → SVG"
-APP_VERSION = "1.0.0"  # erscheint links in der Footerleiste
+APP_VERSION = "1.0.1"  # erscheint links in der Footerleiste
+GITHUB_REPO = "schiffer-soft/F360toSVG"
+
+
+def data_dir() -> Path:
+    """Verzeichnis für Nutzerdaten: %APPDATA%\\F360toSVG.
+
+    Bewusst NICHT neben der EXE — dort ist je nach Ablageort kein
+    Schreibrecht (Programme, Netzlaufwerk), Cloud-Ordner synchronisieren
+    jede Änderung mit, und beim Wechsel auf eine neue Programmversion
+    wären die Profile weg. Fällt auf den Programmordner zurück, falls
+    %APPDATA% fehlt.
+    """
+    base = os.environ.get("APPDATA")
+    directory = Path(base) / "F360toSVG" if base else SCRIPT_DIR
+    try:
+        directory.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        return SCRIPT_DIR
+    return directory
+
+
+DATA_DIR = data_dir()
 
 # Auf-/zuklappbare Gruppen der Seitenleisten (Reihenfolge = Anzeige).
 # label = Deutsch, label_en = Englisch — das Frontend waehlt je Sprache.
@@ -241,6 +263,7 @@ class Api:
         self._cache: dict | None = None  # letzte Extraktion + Ausgabepfad
         self._last_shot: bytes | None = None  # letzter Fusion-Screenshot (PNG)
         self._last_svg: str | None = None  # zuletzt gebautes SVG (Vorschau)
+        self._migrate_legacy_store()
 
     # --- intern -----------------------------------------------------------
 
@@ -294,8 +317,22 @@ class Api:
             watcher.join(timeout=2)
 
     # Farb-Anpassungen UND Einstellungen pro Fusion-Dokument (dauerhaft)
-    OVERRIDES_FILE = SCRIPT_DIR / "color_overrides.json"
+    OVERRIDES_FILE = DATA_DIR / "color_overrides.json"
+    LEGACY_OVERRIDES_FILE = SCRIPT_DIR / "color_overrides.json"
     DOC_OPTION_KEYS = ("format", "output")  # zusaetzlich zu OPTION_IDS
+
+    @classmethod
+    def _migrate_legacy_store(cls) -> None:
+        """Profile aus dem Programmordner einmalig nach %APPDATA% holen."""
+        if cls.OVERRIDES_FILE.exists() or not cls.LEGACY_OVERRIDES_FILE.exists():
+            return
+        try:
+            cls.OVERRIDES_FILE.write_bytes(cls.LEGACY_OVERRIDES_FILE.read_bytes())
+            print(f"Dokument-Profile übernommen: {cls.LEGACY_OVERRIDES_FILE} "
+                  f"→ {cls.OVERRIDES_FILE}")
+        except OSError as exc:
+            print(f"Warnung: Profile konnten nicht übernommen werden: {exc}",
+                  file=sys.stderr)
 
     def _read_store(self) -> dict:
         try:
@@ -436,6 +473,48 @@ class Api:
             "sections": OPTION_SECTIONS,
             "options": OPTION_SCHEMA,
             "version": APP_VERSION,
+        }
+
+    @staticmethod
+    def _version_tuple(text: str) -> tuple:
+        """'v1.2.3' -> (1, 2, 3); unbekannte Teile werden zu 0."""
+        parts = str(text).strip().lstrip("vV").split(".")
+        numbers = []
+        for part in parts[:4]:
+            digits = "".join(ch for ch in part if ch.isdigit())
+            numbers.append(int(digits) if digits else 0)
+        return tuple(numbers)
+
+    def check_update(self) -> dict:
+        """Prüft still, ob auf GitHub ein neueres Release liegt.
+
+        Bewusst fehlertolerant: kein Netz, GitHub down oder API-Limit
+        liefern einfach {"available": False} — der Nutzer soll davon
+        nichts merken.
+        """
+        url = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
+        try:
+            import urllib.request
+
+            request = urllib.request.Request(
+                url, headers={"Accept": "application/vnd.github+json",
+                              "User-Agent": f"F360toSVG/{APP_VERSION}"},
+            )
+            with urllib.request.urlopen(request, timeout=6) as response:
+                data = json.loads(response.read().decode("utf-8"))
+        except Exception:  # Netzfehler, Timeout, Rate-Limit, kaputtes JSON
+            return {"available": False}
+
+        latest = str(data.get("tag_name") or "").strip()
+        if not latest:
+            return {"available": False}
+        if self._version_tuple(latest) <= self._version_tuple(APP_VERSION):
+            return {"available": False}
+        return {
+            "available": True,
+            "version": latest.lstrip("vV"),
+            "url": data.get("html_url")
+                   or f"https://github.com/{GITHUB_REPO}/releases/latest",
         }
 
     def open_url(self, url: str) -> dict:

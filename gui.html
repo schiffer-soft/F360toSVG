@@ -86,6 +86,15 @@
   .app-footer .footer-paypal:hover svg { filter: brightness(1.2); }
   .app-footer .footer-brand-icon { height: 14px; width: auto; border-radius: 2px; display: block; }
   .app-footer #footer-version { font-family: ui-monospace, monospace; }
+  /* Update-Hinweis: dezent, faellt nur beim Hinsehen auf */
+  .app-footer #footer-update {
+    display: none; align-items: center; gap: 4px; margin-left: 8px;
+    padding: 1px 7px; border-radius: 999px;
+    border: 1px solid rgba(77, 140, 255, 0.45);
+    background: rgba(77, 140, 255, 0.10); color: var(--accent);
+  }
+  .app-footer #footer-update.show { display: inline-flex; }
+  .app-footer #footer-update:hover { color: var(--text); border-color: var(--accent); }
 
   /* ---------- Sprach-Umschalter (Flaggen) ---------- */
   .lang-switch { display: flex; gap: 6px; margin-right: 12px; }
@@ -441,7 +450,10 @@
 </main>
 
 <footer class="app-footer">
-  <span class="footer-left"><span id="footer-version">&mdash;</span></span>
+  <span class="footer-left">
+    <span id="footer-version">&mdash;</span>
+    <a id="footer-update" href="https://github.com/schiffer-soft/F360toSVG/releases/latest"></a>
+  </span>
   <span class="footer-right">
     2026 by <a href="https://schiffer-soft.de" class="footer-brand">
       <img class="footer-brand-icon" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABwAAAAcCAYAAAByDd+UAAAElElEQVR42u1WXWgcVRQ+5947+zPbpHQVTY3xjzYNofVBixWUdkMbqGKlRbJFRMSXaB8MvpQqpWwKFkQQVMRHQawvKSoq+pop1qJQKZHQZjO72W2baddkm/2ZZGZ2Z+YeH3ZGtyFJW9sn8TwN99x7vvnOufc7B+C/bvxOAxARAgA7ffo03cp+/BfBse0cIaK862kgIkZEbCXf7OzsPYZhPEREmMlk2B0zJCIWstB1vUdRYptd171XCCEWFqqTfX2PjhCBt25dx5uTk5ORrVu3NteKJ9ZyZjIZhogym80+xbmyX1GUJgAWGGPXbdtpdHff95kQyqZIJHp/rVY7s379+pNEJBDRu+00jo2NcQCAXG5mRNcL709NFfra/Y5jvUNEbqVSPmCa5iuLi4tfFwqXXw+ywm+3ZgFY7kg+XzjUtq4AAFSr1UMUmGmau0N/Nps7nM3qb90WaMgsm80dyOVmDgMAjI+TGB8fF0SEc3Nzm13XtXzfc0NAIuJEFAEAyOcLo9lsfk97rJte/enp6c5cLv9JAMIBCMM/tqyln4iIXLfpEBFVKpX9rXPnFCJihmGoup7/uFAoxIJndIOx5alERALgg0T4y8DAgNdaB4aIfrlc3hOPq8/5vueHoiGE6G6dfpI0TWPd3d0WEfzhON4uRKTlLG8APHXqVAAs+zyv8VvwbP5+2KoaPwoAPtE/osIYezz8TqVSPhEhovyVMdgGADA0NLQ6w3Q67WcyGUZE8VKpVAIAAmixq1Qqu+NxNQUAHBF5eJYx3BWw8AEAEJFs275KRIkgrFwVEABgdHSUCyFA07TwAVOhUOhaWloC0zSHbdv+AZEBAKDneTIajW5JpVLPAgBomsYBAKSUTcSWMrVKtHoNEQA8z/No3759sVZ6UCaTG97u6ur6QgjxIgAptm1PAyABECEySCQSGUSkjo4OBACIRCIxRO6HSrUWQ4aIxBgsqar6IAAgESn1uvmplHJDPB5/IR5X90YiyqYWGHLPc6WqqgOLi/Vj27dvdwNWjwBAfSX5FCtdGsbYhKIoOxFxOqjB7Nzc1ec7O5NHAahLCLGNcwG+7xERebZtXYhEYiPVapWdP3/+BGPKM0T+72Hi1hRvIkJN06I9PQ+/19GR+DKRSOwFgB2MYaeUxBHxTynltBBii6IoL3HOueM45yqVymvRaHRDqVSai0Zjw1euXH5X0zR5/PhxeUtKo+szQ9eulc6YpjlYq9V2LCws7LQs61XHsU82m80rlmX9WK0uHHMc+yvf9y/V6/UPWnJYPDExceHpleq3ansKBMCfmtLTUtID/f29H7X7DcPoSyaTH3LOnvA8/1spm98jQrlSsYZd16VicebI/Py8mU6n5U1TurwPzsxcOkjk7wLg3/h+4+fe3t5GuKdarT6mKMobjUbzZcbYvJT0ueNYYxs3biwzxqhdIG6pAYeguq73APCD0Wgk6fvyuud5dURgnAsupR9rNJplw7j83eDgYO2Ox4t2LTx79my8WCz2X7yoD+i6nioWi/2GYaihP+wod2OmwbX6W9Ce8K5Pbcsmt3BqI/jf2uwvd2mmZMLh/ZcAAAAASUVORK5CYII=" alt="">
@@ -463,11 +475,11 @@
       <span id="footer-donate">Gef&auml;llt dir? Spendier mir einen Kaffee</span>
     </a>
     <span class="footer-sep">|</span>
-    <a href="https://github.com/schiffer-soft/Fusion360-to-SVG" class="footer-github" aria-label="Fusion360-to-SVG on GitHub">
+    <a href="https://github.com/schiffer-soft/F360toSVG" class="footer-github" aria-label="F360toSVG on GitHub">
       <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor" aria-hidden="true">
         <path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.56 0-.28-.01-1.02-.02-2-3.2.69-3.87-1.54-3.87-1.54-.52-1.33-1.27-1.69-1.27-1.69-1.04-.71.08-.7.08-.7 1.15.08 1.76 1.18 1.76 1.18 1.02 1.75 2.68 1.25 3.34.95.1-.74.4-1.25.72-1.54-2.55-.29-5.24-1.28-5.24-5.7 0-1.26.45-2.29 1.18-3.1-.12-.29-.51-1.46.11-3.04 0 0 .97-.31 3.18 1.18a11.07 11.07 0 015.79 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.58.24 2.75.12 3.04.74.81 1.18 1.84 1.18 3.1 0 4.43-2.69 5.4-5.26 5.69.41.36.78 1.06.78 2.13 0 1.54-.01 2.78-.01 3.16 0 .31.21.68.8.56C20.21 21.39 23.5 17.08 23.5 12 23.5 5.65 18.35.5 12 .5z"/>
       </svg>
-      <span>Fusion360-to-SVG on GitHub</span>
+      <span>F360toSVG on GitHub</span>
     </a>
   </span>
 </footer>
@@ -523,6 +535,8 @@ const I18N = {
     overridesLoaded: "Gespeicherte Farb-Anpassungen für '{d}' geladen ({n} Farben).",
     guiReady: "GUI bereit — Einstellungen wählen und exportieren.",
     donate: "Gefällt dir? Spendier mir einen Kaffee",
+    updateAvail: "Version {v} verfügbar",
+    updateTitle: "Neue Version auf GitHub — klicken zum Herunterladen",
   },
   en: {
     ready: "Ready", connecting: "Connecting …",
@@ -564,6 +578,8 @@ const I18N = {
     overridesLoaded: "Loaded saved color overrides for '{d}' ({n} colors).",
     guiReady: "GUI ready — choose settings and export.",
     donate: "Like it? Buy me a coffee",
+    updateAvail: "version {v} available",
+    updateTitle: "New version on GitHub — click to download",
   },
 };
 
@@ -815,6 +831,7 @@ const App = {
       this.applyStatic();
       this.refreshStatus();
       UI.appendLog(t("guiReady"), "sys");
+      this.scheduleUpdateCheck();
     } catch (e) {
       this.initialized = false;
       UI.appendLog("Init-Fehler: " + (e && (e.stack || e.message || e)), "err");
@@ -896,6 +913,31 @@ const App = {
     }
   },
 
+  // ----- Update-Hinweis -----
+  // Erst 30 s nach dem Start fragen: der Programmstart soll nicht auf
+  // das Netz warten. Fehler bleiben still, der Hinweis erscheint nur,
+  // wenn wirklich eine neuere Version vorliegt.
+  scheduleUpdateCheck() {
+    setTimeout(async () => {
+      try {
+        const info = await pywebview.api.check_update();
+        if (info && info.available) {
+          this.update = info;
+          this.applyUpdateHint();
+        }
+      } catch (e) { /* offline o. ae. - bewusst ignorieren */ }
+    }, 30000);
+  },
+
+  applyUpdateHint() {
+    if (!this.update) return;
+    const link = document.getElementById("footer-update");
+    link.textContent = "↑ " + t("updateAvail").replace("{v}", this.update.version);
+    link.title = t("updateTitle");
+    if (this.update.url) link.href = this.update.url;
+    link.classList.add("show");
+  },
+
   // ----- Sprache -----
   setLang(lang) {
     if (!I18N[lang] || lang === this.lang) return;
@@ -949,6 +991,7 @@ const App = {
     set("ctx-save", "ctxSave");
     set("footer-donate", "donate");
     if (!this.busy) this.setFormat(this.format);
+    this.applyUpdateHint();  // Sprachwechsel: Hinweistext mitziehen
     const pill = document.getElementById("status-pill");
     if (!pill.classList.contains("running")) this.setPill(t("ready"), "");
   },

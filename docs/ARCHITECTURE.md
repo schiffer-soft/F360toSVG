@@ -19,7 +19,7 @@ der [README](../README.md).
 | `build_exe.bat` | Baut die portable EXE (PyInstaller) |
 | `SVG-Export-GUI.bat` | GUI aus dem Quellcode starten |
 | `SVG-Export.bat` | CLI-Export per Doppelklick |
-| `color_overrides.json` | Dokument-Profile: Farben + Einstellungen (automatisch, nicht im Repo) |
+| `%APPDATA%\F360toSVG\color_overrides.json` | Dokument-Profile: Farben + Einstellungen (automatisch angelegt) |
 
 ## Ablauf
 
@@ -201,10 +201,26 @@ Die Protokoll-Meldungen des Backends sind derzeit noch deutsch.
 ### Frozen-Pfade (EXE)
 
 `export_svg.app_dir()` liefert das Verzeichnis **neben der EXE** (bzw. den
-Skriptordner) — dort liegen veränderliche Dateien wie
-`color_overrides.json` und die Exporte. `resource_path(name)` liefert
-eingebettete Ressourcen aus dem PyInstaller-Bundle (`sys._MEIPASS`) —
-`gui.html` und `fusion_extract.py`.
+Skriptordner); `resource_path(name)` liefert eingebettete Ressourcen aus
+dem PyInstaller-Bundle (`sys._MEIPASS`) — `gui.html` und
+`fusion_extract.py`.
+
+Nutzerdaten liegen dagegen in `gui.data_dir()` =
+`%APPDATA%\F360toSVG`: neben der EXE ist je nach Ablageort kein
+Schreibrecht (Programme, Netzlaufwerk), Cloud-Ordner synchronisieren jede
+Änderung mit, und beim Wechsel auf eine neue Programmversion wären die
+Profile weg. Eine alte `color_overrides.json` aus dem Programmordner wird
+beim ersten Start einmalig übernommen (`_migrate_legacy_store`).
+
+### Update-Hinweis
+
+`Api.check_update()` fragt rund 30 Sekunden nach dem Start (Timer im
+Frontend, damit der Start nicht aufs Netz wartet) das neueste Release der
+GitHub-API ab und vergleicht `tag_name` mit `APP_VERSION`. Der Vergleich
+läuft über Zahlen-Tupel, damit `1.10.0` korrekt größer als `1.9.9` ist.
+Jeder Fehler — kein Netz, Timeout, API-Limit — liefert still
+`{"available": False}`; erscheint ein Hinweis, dann nur als kleine Pille
+in der Fußzeile, die auf die Releases-Seite verlinkt.
 
 ## Stilregeln
 
