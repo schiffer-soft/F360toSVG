@@ -35,7 +35,7 @@ def _find_edge() -> str:
         if candidate.is_file():
             return str(candidate)
     raise ConvertError(
-        "Microsoft Edge nicht gefunden — wird fuer PNG/JPG/PDF/AI-Export benoetigt."
+        "Microsoft Edge nicht gefunden — wird für PNG/JPG/PDF/AI-Export benötigt."
     )
 
 
@@ -44,7 +44,7 @@ def _svg_size_mm(svg_text: str) -> tuple[float, float]:
         r'<svg[^>]*\bwidth="([0-9.]+)mm"[^>]*\bheight="([0-9.]+)mm"', svg_text
     )
     if not match:
-        raise ConvertError("SVG-Groesse (mm) nicht lesbar.")
+        raise ConvertError("SVG-Größe (mm) nicht lesbar.")
     return float(match.group(1)), float(match.group(2))
 
 
@@ -92,7 +92,7 @@ def _raster(svg_text: str, width_mm: float, height_mm: float,
                 from PIL import Image
             except ImportError as exc:
                 raise ConvertError(
-                    "Pillow fehlt fuer JPG-Export (pip install pillow)."
+                    "Pillow fehlt für JPG-Export (pip install pillow)."
                 ) from exc
             with Image.open(shot) as image:
                 image.convert("RGB").save(out_path, quality=JPG_QUALITY)
@@ -122,7 +122,7 @@ def convert_svg_file(svg_path: Path, fmt: str, dpi: int = EXPORT_DPI) -> Path:
     """Konvertiert eine SVG-Datei; Zieldatei = gleicher Name, neue Endung."""
     fmt = fmt.lower().lstrip(".")
     if fmt not in FORMATS:
-        raise ConvertError(f"Unbekanntes Format: {fmt} (moeglich: {', '.join(FORMATS)})")
+        raise ConvertError(f"Unbekanntes Format: {fmt} (möglich: {', '.join(FORMATS)})")
     svg_text = svg_path.read_text(encoding="utf-8")
     width_mm, height_mm = _svg_size_mm(svg_text)
     out_path = svg_path.with_suffix("." + fmt)

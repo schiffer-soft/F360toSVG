@@ -113,7 +113,36 @@ def _texture_info(prop):
             rgb_amount * prop_value("unifiedbitmap_BlueAmount", 1.0),
         ],
         "invert": bool(prop_value("unifiedbitmap_Invert", False)),
+        # Kachel-Platzierung: RealWorldScale/-Offset sind in Zoll
+        "scale_mm": [
+            prop_value("texture_RealWorldScaleX", 1.0) * 25.4,
+            prop_value("texture_RealWorldScaleY", 1.0) * 25.4,
+        ],
+        "offset_mm": [
+            prop_value("texture_RealWorldOffsetX", 0.0) * 25.4,
+            prop_value("texture_RealWorldOffsetY", 0.0) * 25.4,
+        ],
+        "angle_deg": prop_value("texture_WAngle", 0.0),
     }
+
+
+def texture_anchor(body, axes):
+    """Projizierter Ursprung der Textur-Projektion eines Koerpers (mm).
+
+    body.textureMapControl liefert die Projektions-Matrix (Box-Mapping);
+    ihre Translation ist der Ankerpunkt des Kachelrasters. None, wenn die
+    API sie nicht hergibt — der Builder kachelt dann ab Ursprung.
+    """
+    u_axis, v_axis, _ = axes
+    try:
+        m = body.textureMapControl.transform.asArray()  # 4x4, zeilenweise, cm
+    except Exception:
+        return None
+    origin3 = (m[3], m[7], m[11])
+    return [
+        round(u_axis[1] * origin3[u_axis[0]] * 10.0, COORD_DECIMALS),
+        round(v_axis[1] * origin3[v_axis[0]] * 10.0, COORD_DECIMALS),
+    ]
 
 
 def partial_write(obj, truncate=False):
@@ -302,6 +331,19 @@ def visible_faces(body, axes):
                 entry["ringAxisD"] = round(
                     d_axis[1] * axis_coords[d_axis[0]], 4
                 )
+                # Konkav (Innenfase am Loch): Normale zeigt ZUR Achse ->
+                # der Lichtverlauf muss gespiegelt werden
+                if ok:
+                    point = face.pointOnFace
+                    along = ((point.x - origin.x) * axis.x
+                             + (point.y - origin.y) * axis.y
+                             + (point.z - origin.z) * axis.z)
+                    radial = (point.x - origin.x - along * axis.x,
+                              point.y - origin.y - along * axis.y,
+                              point.z - origin.z - along * axis.z)
+                    dot = (radial[0] * normal3.x + radial[1] * normal3.y
+                           + radial[2] * normal3.z)
+                    entry["ringConcave"] = dot < 0
             except Exception:
                 pass  # ohne Zentrum faellt der Builder auf Flachschattierung zurueck
         faces.append(entry)
@@ -374,7 +416,7 @@ def run(_context: str):
     app = adsk.core.Application.get()
     design = adsk.fusion.Design.cast(app.activeProduct)
     if not design:
-        print(json.dumps({"error": "Kein aktives Design in Fusion geoeffnet."}))
+        print(json.dumps({"error": "Kein aktives Design in Fusion geöffnet."}))
         return
 
     root = design.rootComponent
@@ -398,7 +440,7 @@ def run(_context: str):
         # Occurrence-Bodies sind Proxies -> Geometrie kommt in Weltkoordinaten
         all_bodies.extend(occurrence.bRepBodies)
     visible_bodies = [b for b in all_bodies if b.isVisible]
-    progress(f"{len(visible_bodies)} sichtbare Koerper gefunden")
+    progress(f"{len(visible_bodies)} sichtbare Körper gefunden")
 
     total_faces = 0
     # nicht jeden Koerper melden — bei grossen Designs ~20 Sammelmeldungen
@@ -413,14 +455,15 @@ def run(_context: str):
             "faces": faces,
         }
         if texture:
+            texture["anchor"] = texture_anchor(body, axes)
             entry["texture"] = texture
         out["bodies"].append(entry)
         if entry["faces"]:
             partial_write({"body": entry})
         if index % report_step == 0 or index == len(visible_bodies):
             progress(
-                f"Koerper {index}/{len(visible_bodies)} verarbeitet, "
-                f"{total_faces} Flaechen (zuletzt: '{body.name}')"
+                f"Körper {index}/{len(visible_bodies)} verarbeitet, "
+                f"{total_faces} Flächen (zuletzt: '{body.name}')"
             )
 
     progress("Suche Aufkleber (Decals) ...")
@@ -428,8 +471,8 @@ def run(_context: str):
     if out["decals"]:
         progress(f"{len(out['decals'])} Aufkleber erfasst")
     progress(
-        f"Extraktion fertig: {len(visible_bodies)} Koerper, "
-        f"{total_faces} Flaechen — uebertrage Ergebnis ..."
+        f"Extraktion fertig: {len(visible_bodies)} Körper, "
+        f"{total_faces} Flächen — übertrage Ergebnis ..."
     )
 
     # Ergebnis in eine Temp-Datei schreiben statt zu printen:
