@@ -64,10 +64,45 @@
   .pill.success { color: var(--ok); border-color: var(--ok); }
   .pill.error { color: var(--err); border-color: var(--err); }
 
+  .logo img { width: 38px; height: 38px; vertical-align: -12px; margin-right: 6px; }
+
+  /* ---------- Footerleiste ---------- */
+  .app-footer {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 7px 18px; flex: none;
+    background: var(--panel); border-top: 1px solid var(--border);
+    color: var(--muted); font-size: 11px;
+  }
+  .app-footer .footer-left, .app-footer .footer-right {
+    display: flex; align-items: center; gap: 6px;
+  }
+  .app-footer a {
+    color: var(--muted); text-decoration: none;
+    display: inline-flex; align-items: center; gap: 4px; cursor: pointer;
+  }
+  .app-footer a:hover { color: var(--text); }
+  .app-footer .footer-sep { opacity: 0.4; }
+  .app-footer svg { display: block; }
+  .app-footer .footer-paypal:hover svg { filter: brightness(1.2); }
+  .app-footer .footer-brand-icon { height: 14px; width: auto; border-radius: 2px; display: block; }
+  .app-footer #footer-version { font-family: ui-monospace, monospace; }
+
+  /* ---------- Sprach-Umschalter (Flaggen) ---------- */
+  .lang-switch { display: flex; gap: 6px; margin-right: 12px; }
+  .lang-switch button {
+    padding: 3px; border-radius: 5px; border: 1px solid transparent;
+    background: none; cursor: pointer; opacity: 0.4; line-height: 0;
+  }
+  .lang-switch button:hover { opacity: 0.85; }
+  .lang-switch button.active {
+    opacity: 1; border-color: var(--accent); background: rgba(77,140,255,0.12);
+  }
+  .lang-switch svg { display: block; border-radius: 2px; }
+
   /* ---------- Layout ---------- */
   main { flex: 1; display: flex; min-height: 0; }
   aside {
-    width: 300px; flex: none; padding: 14px; overflow-y: auto;
+    width: 260px; flex: none; padding: 14px; overflow-y: auto;
     border-right: 1px solid var(--border); background: var(--panel);
     display: flex; flex-direction: column; gap: 12px;
   }
@@ -137,7 +172,7 @@
 
   /* ---------- Farben-Panel (zwischen den Vorschauen) ---------- */
   .colors-panel {
-    width: 250px; flex: none; padding: 12px; overflow-y: auto;
+    width: 175px; flex: none; padding: 10px; overflow-y: auto;
     border-left: 1px solid var(--border); border-right: 1px solid var(--border);
     background: var(--panel);
   }
@@ -269,13 +304,31 @@
 <body>
 
 <header>
-  <div class="logo">🚀 Fusion 360 <span>→ SVG</span></div>
+  <div class="logo"><img src="data:image/png;base64,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" alt="F360toSVG"> Fusion 360 <span>→ SVG</span></div>
   <div class="doc-badge">
     <div id="conn-dot" class="dot"></div>
     <span id="doc-name">Verbinde …</span>
     <button class="btn small" id="btn-status" title="Status aktualisieren">⟳</button>
   </div>
   <div class="spacer"></div>
+  <div class="lang-switch" id="lang-switch">
+    <button data-lang="de" title="Deutsch">
+      <svg width="24" height="16" viewBox="0 0 24 16">
+        <rect width="24" height="16" fill="#000"/>
+        <rect y="5.33" width="24" height="5.34" fill="#DD0000"/>
+        <rect y="10.67" width="24" height="5.33" fill="#FFCE00"/>
+      </svg>
+    </button>
+    <button data-lang="en" title="English">
+      <svg width="24" height="16" viewBox="0 0 60 40">
+        <rect width="60" height="40" fill="#012169"/>
+        <path d="M0,0 L60,40 M60,0 L0,40" stroke="#fff" stroke-width="8"/>
+        <path d="M0,0 L60,40 M60,0 L0,40" stroke="#C8102E" stroke-width="4"/>
+        <path d="M30,0 V40 M0,20 H60" stroke="#fff" stroke-width="13"/>
+        <path d="M30,0 V40 M0,20 H60" stroke="#C8102E" stroke-width="8"/>
+      </svg>
+    </button>
+  </div>
   <div id="status-pill" class="pill">
     <span class="ring"></span><span id="pill-text">Bereit</span>
   </div>
@@ -291,7 +344,7 @@
     <div class="previews">
       <div class="pane">
         <div class="bar">
-          <span class="title">Fusion-Ansicht</span>
+          <span class="title" id="fusion-title">Fusion-Ansicht</span>
           <span class="meta" id="fusion-meta"></span>
           <div class="spacer"></div>
           <button class="btn small" id="btn-viewonly" title="Nur den Viewport-Screenshot aktualisieren">Ansicht ⟳</button>
@@ -307,10 +360,10 @@
       <div class="colors-panel">
         <button class="btn primary" id="btn-preview" style="margin-bottom:12px"
                 title="Baut das SVG aus den ausgelesenen Daten — ohne etwas zu speichern">
-          Vorschau generieren
+          Vorschau
         </button>
-        <h3>Farben</h3>
-        <div class="colors-head"><span>◀ Fusion</span><span>Neu (SVG) ▶</span></div>
+        <h3 id="colors-title">Farben</h3>
+        <div class="colors-head"><span id="colors-left">◀ Fusion</span><span id="colors-right">Neu (SVG) ▶</span></div>
         <div id="colors-rows">
           <div class="colors-hint">„Auslesen aus Fusion" oder ein Export
           füllt diese Palette.<br><br>Rechts neue Farbe wählen —
@@ -323,7 +376,7 @@
       </div>
       <div class="pane">
         <div class="bar">
-          <span class="title">SVG-Ergebnis</span>
+          <span class="title" id="svg-title">SVG-Ergebnis</span>
           <span class="meta" id="result-meta"></span>
           <div class="spacer"></div>
           <span class="meta" id="svg-zoom"></span>
@@ -342,7 +395,7 @@
 
     <div class="log-wrap">
       <div class="log-bar">
-        <span>Protokoll</span>
+        <span id="log-title">Protokoll</span>
         <div class="spacer" style="flex:1"></div>
         <button class="btn small" id="btn-clear-log">Leeren</button>
       </div>
@@ -368,15 +421,15 @@
     <div id="form-svg" class="form-col"></div>
 
     <details class="section" data-section="ausgabe" open>
-      <summary>Ausgabe</summary>
+      <summary id="out-summary">Ausgabe</summary>
       <div class="section-body">
         <div class="field">
           <label class="toggle">
             <input type="checkbox" id="out-auto" checked>
             <span class="track"></span>
-            <span>Automatischer Dateiname</span>
+            <span id="out-auto-label">Automatischer Dateiname</span>
           </label>
-          <div class="help" style="margin-top:4px">&lt;Dokument&gt;[-Ansicht].&lt;Format&gt; im Projektordner</div>
+          <div class="help" style="margin-top:4px" id="out-auto-help">&lt;Dokument&gt;[-Ansicht].&lt;Format&gt; im Projektordner</div>
         </div>
         <div class="field row" id="out-row" style="display:none">
           <input type="text" id="out-path" placeholder="Pfad zur SVG-Datei">
@@ -387,6 +440,38 @@
   </aside>
 </main>
 
+<footer class="app-footer">
+  <span class="footer-left"><span id="footer-version">&mdash;</span></span>
+  <span class="footer-right">
+    2026 by <a href="https://schiffer-soft.de" class="footer-brand">
+      <img class="footer-brand-icon" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABwAAAAcCAYAAAByDd+UAAAElElEQVR42u1WXWgcVRQ+5947+zPbpHQVTY3xjzYNofVBixWUdkMbqGKlRbJFRMSXaB8MvpQqpWwKFkQQVMRHQawvKSoq+pop1qJQKZHQZjO72W2baddkm/2ZZGZ2Z+YeH3ZGtyFJW9sn8TwN99x7vvnOufc7B+C/bvxOAxARAgA7ffo03cp+/BfBse0cIaK862kgIkZEbCXf7OzsPYZhPEREmMlk2B0zJCIWstB1vUdRYptd171XCCEWFqqTfX2PjhCBt25dx5uTk5ORrVu3NteKJ9ZyZjIZhogym80+xbmyX1GUJgAWGGPXbdtpdHff95kQyqZIJHp/rVY7s379+pNEJBDRu+00jo2NcQCAXG5mRNcL709NFfra/Y5jvUNEbqVSPmCa5iuLi4tfFwqXXw+ywm+3ZgFY7kg+XzjUtq4AAFSr1UMUmGmau0N/Nps7nM3qb90WaMgsm80dyOVmDgMAjI+TGB8fF0SEc3Nzm13XtXzfc0NAIuJEFAEAyOcLo9lsfk97rJte/enp6c5cLv9JAMIBCMM/tqyln4iIXLfpEBFVKpX9rXPnFCJihmGoup7/uFAoxIJndIOx5alERALgg0T4y8DAgNdaB4aIfrlc3hOPq8/5vueHoiGE6G6dfpI0TWPd3d0WEfzhON4uRKTlLG8APHXqVAAs+zyv8VvwbP5+2KoaPwoAPtE/osIYezz8TqVSPhEhovyVMdgGADA0NLQ6w3Q67WcyGUZE8VKpVAIAAmixq1Qqu+NxNQUAHBF5eJYx3BWw8AEAEJFs275KRIkgrFwVEABgdHSUCyFA07TwAVOhUOhaWloC0zSHbdv+AZEBAKDneTIajW5JpVLPAgBomsYBAKSUTcSWMrVKtHoNEQA8z/No3759sVZ6UCaTG97u6ur6QgjxIgAptm1PAyABECEySCQSGUSkjo4OBACIRCIxRO6HSrUWQ4aIxBgsqar6IAAgESn1uvmplHJDPB5/IR5X90YiyqYWGHLPc6WqqgOLi/Vj27dvdwNWjwBAfSX5FCtdGsbYhKIoOxFxOqjB7Nzc1ec7O5NHAahLCLGNcwG+7xERebZtXYhEYiPVapWdP3/+BGPKM0T+72Hi1hRvIkJN06I9PQ+/19GR+DKRSOwFgB2MYaeUxBHxTynltBBii6IoL3HOueM45yqVymvRaHRDqVSai0Zjw1euXH5X0zR5/PhxeUtKo+szQ9eulc6YpjlYq9V2LCws7LQs61XHsU82m80rlmX9WK0uHHMc+yvf9y/V6/UPWnJYPDExceHpleq3ansKBMCfmtLTUtID/f29H7X7DcPoSyaTH3LOnvA8/1spm98jQrlSsYZd16VicebI/Py8mU6n5U1TurwPzsxcOkjk7wLg3/h+4+fe3t5GuKdarT6mKMobjUbzZcbYvJT0ueNYYxs3biwzxqhdIG6pAYeguq73APCD0Wgk6fvyuud5dURgnAsupR9rNJplw7j83eDgYO2Ox4t2LTx79my8WCz2X7yoD+i6nioWi/2GYaihP+wod2OmwbX6W9Ce8K5Pbcsmt3BqI/jf2uwvd2mmZMLh/ZcAAAAASUVORK5CYII=" alt="">
+      <span>schiffer-soft.de</span>
+    </a>
+    <span class="footer-sep">|</span>
+    <a href="https://x.com/schiffer_soft" class="footer-x" aria-label="X / @schiffer_soft">
+      <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor" aria-hidden="true">
+        <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+      </svg>
+      <span>schiffer_soft</span>
+    </a>
+    <span class="footer-sep">|</span>
+    <a href="https://www.paypal.me/schiffersoft" class="footer-paypal" aria-label="Donate via PayPal">
+      <svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true">
+        <path fill="#003087" d="M7.36 21.39c-.16 0-.31-.07-.41-.2a.531.531 0 0 1-.11-.43l.55-3.49h2.16l-.46 2.92c-.04.27-.27.47-.55.47H7.36zm10.84-13.5c-.27-1.85-1.45-3.05-3.36-3.05H8.49c-.42 0-.78.31-.84.73L5.69 18.11c-.04.31.2.59.51.59h3.27l.83-5.27a.85.85 0 0 1 .84-.72h1.55c3.21 0 5.71-1.31 6.44-5.08.02-.11.03-.22.05-.33.21-1.39 0-2.34-.98-3.41z"/>
+        <path fill="#0070E0" d="M19.07 7.49c-.07.45-.16.91-.27 1.4-.69 3.55-3.06 4.78-6.08 4.78H11.18c-.37 0-.68.27-.74.63l-.78 4.93-.22 1.4c-.04.24.15.46.39.46h2.73c.32 0 .6-.24.65-.56l.03-.14.51-3.26.03-.18c.05-.32.33-.56.65-.56h.41c2.65 0 4.72-1.08 5.32-4.19.25-1.3.12-2.39-.55-3.16a2.65 2.65 0 0 0-.54-.45z"/>
+      </svg>
+      <span id="footer-donate">Gef&auml;llt dir? Spendier mir einen Kaffee</span>
+    </a>
+    <span class="footer-sep">|</span>
+    <a href="https://github.com/schiffer-soft/Fusion360-to-SVG" class="footer-github" aria-label="Fusion360-to-SVG on GitHub">
+      <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor" aria-hidden="true">
+        <path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.56 0-.28-.01-1.02-.02-2-3.2.69-3.87-1.54-3.87-1.54-.52-1.33-1.27-1.69-1.27-1.69-1.04-.71.08-.7.08-.7 1.15.08 1.76 1.18 1.76 1.18 1.02 1.75 2.68 1.25 3.34.95.1-.74.4-1.25.72-1.54-2.55-.29-5.24-1.28-5.24-5.7 0-1.26.45-2.29 1.18-3.1-.12-.29-.51-1.46.11-3.04 0 0 .97-.31 3.18 1.18a11.07 11.07 0 015.79 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.58.24 2.75.12 3.04.74.81 1.18 1.84 1.18 3.1 0 4.43-2.69 5.4-5.26 5.69.41.36.78 1.06.78 2.13 0 1.54-.01 2.78-.01 3.16 0 .31.21.68.8.56C20.21 21.39 23.5 17.08 23.5 12 23.5 5.65 18.35.5 12 .5z"/>
+      </svg>
+      <span>Fusion360-to-SVG on GitHub</span>
+    </a>
+  </span>
+</footer>
+
 <div class="menu ctx" id="fusion-ctx">
   <div class="menu-item" id="ctx-copy">Bild kopieren</div>
   <div class="menu-item" id="ctx-save">Bild speichern …</div>
@@ -395,12 +480,111 @@
 <script>
 "use strict";
 
+// ----- Mehrsprachigkeit (UI-Texte; Protokoll-Meldungen des Backends
+// bleiben vorerst deutsch). Schema-Labels kommen zweisprachig aus gui.py.
+const I18N = {
+  de: {
+    ready: "Bereit", connecting: "Verbinde …",
+    statusTitle: "Status aktualisieren",
+    readFusion: "Auslesen aus Fusion", reading: "Liest aus Fusion …",
+    readingPill: "Liest aus …",
+    fusionView: "Fusion-Ansicht", viewOnly: "Ansicht ⟳",
+    viewOnlyTitle: "Nur den Viewport-Screenshot aktualisieren",
+    fusionPh: "„Auslesen aus Fusion\" klicken:<br>holt Ansicht, Geometrie und Farben —<br>danach lassen sich Farben und Deckkraft<br>schon vor dem Export einstellen.",
+    preview: "Vorschau",
+    previewTitle: "Baut das SVG aus den ausgelesenen Daten — ohne etwas zu speichern",
+    colors: "Farben", colorsL: "◀ Fusion", colorsR: "Neu (SVG) ▶",
+    colorsHint: "„Auslesen aus Fusion\" oder ein Export füllt diese Palette.<br><br>Rechts neue Farbe wählen — das SVG aktualisiert sich sofort. Klick auf die Fusion-Farbe links setzt zurück.",
+    resetAll: "Alle zurücksetzen",
+    svgResult: "SVG-Ergebnis", fit: "Einpassen",
+    svgPh: "Noch kein Export.<br>Optionen wählen und <b>Exportieren</b> klicken.<br><br><span style=\"font-size:12px\">Mausrad = Zoom · Ziehen = Verschieben<br>(beide Ansichten laufen synchron)</span>",
+    log: "Protokoll", clear: "Leeren",
+    export: "Exportieren", exporting: "Exportiere …",
+    exportFmtTitle: "Exportformat wählen",
+    output: "Ausgabe", autoName: "Automatischer Dateiname",
+    autoNameHelp: "<Dokument>[-Ansicht].<Format> im Projektordner",
+    outPh: "Pfad zur SVG-Datei",
+    ctxCopy: "Bild kopieren", ctxSave: "Bild speichern …",
+    building: "Aufbau … {n} Körper", updating: "Aktualisiere …",
+    previewOk: "Vorschau ✓", doneOk: "Fertig ✓", fail: "Fehler ✗",
+    runningPill: "Läuft …", loading: "lädt …",
+    noDoc: "kein aktives Dokument", notConnected: "nicht verbunden",
+    unreachable: "Fusion nicht erreichbar: ",
+    shapes: "Flächen", override: "überschreiben", more: "Weitere",
+    resetTo: "Zurücksetzen auf ",
+    needRead: "Erst 'Auslesen aus Fusion' klicken — dann gibt es Daten für die Vorschau.",
+    renderPng: "Rendere SVG als PNG …",
+    copiedSvg: "SVG-Bild in die Zwischenablage kopiert.",
+    copiedFusion: "Fusion-Bild in die Zwischenablage kopiert.",
+    copyFail: "Kopieren fehlgeschlagen: ",
+    savedImg: "Bild gespeichert: ", saveFail: "Speichern fehlgeschlagen: ",
+    shotFail: "Screenshot fehlgeschlagen: ",
+    settingsLoaded: "Gespeicherte Einstellungen für '{d}' geladen.",
+    overridesLoaded: "Gespeicherte Farb-Anpassungen für '{d}' geladen ({n} Farben).",
+    guiReady: "GUI bereit — Einstellungen wählen und exportieren.",
+    donate: "Gefällt dir? Spendier mir einen Kaffee",
+  },
+  en: {
+    ready: "Ready", connecting: "Connecting …",
+    statusTitle: "Refresh status",
+    readFusion: "Read from Fusion", reading: "Reading from Fusion …",
+    readingPill: "Reading …",
+    fusionView: "Fusion view", viewOnly: "View ⟳",
+    viewOnlyTitle: "Refresh only the viewport screenshot",
+    fusionPh: "Click \"Read from Fusion\":<br>fetches view, geometry and colors —<br>then colors and opacity can be tuned<br>before exporting.",
+    preview: "Preview",
+    previewTitle: "Builds the SVG from the extracted data — without saving anything",
+    colors: "Colors", colorsL: "◀ Fusion", colorsR: "New (SVG) ▶",
+    colorsHint: "\"Read from Fusion\" or an export fills this palette.<br><br>Pick a new color on the right — the SVG updates immediately. Click the Fusion color on the left to reset.",
+    resetAll: "Reset all",
+    svgResult: "SVG result", fit: "Fit",
+    svgPh: "No export yet.<br>Choose options and click <b>Export</b>.<br><br><span style=\"font-size:12px\">Mouse wheel = zoom · drag = pan<br>(both views stay in sync)</span>",
+    log: "Log", clear: "Clear",
+    export: "Export", exporting: "Exporting …",
+    exportFmtTitle: "Choose export format",
+    output: "Output", autoName: "Automatic file name",
+    autoNameHelp: "<Document>[-view].<format> in the project folder",
+    outPh: "Path to the SVG file",
+    ctxCopy: "Copy image", ctxSave: "Save image …",
+    building: "Building … {n} bodies", updating: "Updating …",
+    previewOk: "Preview ✓", doneOk: "Done ✓", fail: "Error ✗",
+    runningPill: "Working …", loading: "loading …",
+    noDoc: "no active document", notConnected: "not connected",
+    unreachable: "Fusion not reachable: ",
+    shapes: "faces", override: "override", more: "More",
+    resetTo: "Reset to ",
+    needRead: "Click 'Read from Fusion' first — then there is data for the preview.",
+    renderPng: "Rendering SVG as PNG …",
+    copiedSvg: "SVG image copied to the clipboard.",
+    copiedFusion: "Fusion image copied to the clipboard.",
+    copyFail: "Copy failed: ",
+    savedImg: "Image saved: ", saveFail: "Saving failed: ",
+    shotFail: "Screenshot failed: ",
+    settingsLoaded: "Loaded saved settings for '{d}'.",
+    overridesLoaded: "Loaded saved color overrides for '{d}' ({n} colors).",
+    guiReady: "GUI ready — choose settings and export.",
+    donate: "Like it? Buy me a coffee",
+  },
+};
+
+function t(key) {
+  const lang = (typeof App !== "undefined" && App.lang) || "de";
+  return (I18N[lang] && I18N[lang][key]) || I18N.de[key] || key;
+}
+
+// Schema-Feld je Sprache: label/label_en, help/help_en
+function pickL(entry, field) {
+  const lang = (typeof App !== "undefined" && App.lang) || "de";
+  if (lang === "en" && entry[field + "_en"]) return entry[field + "_en"];
+  return entry[field];
+}
+
 const UI = {
   previewSvg(svgText, bodyCount) {
     // Zwischen-Vorschau waehrend der Extraktion (vom Backend gepusht)
     PanZoom.setSvg(svgText);
     document.getElementById("result-meta").textContent =
-      "Aufbau … " + bodyCount + " Körper";
+      t("building").replace("{n}", bodyCount);
   },
   appendLog(line, kind) {
     const log = document.getElementById("log");
@@ -585,6 +769,7 @@ const PanZoom = {
 
 const App = {
   schema: [],
+  lang: "de",
   busy: false,
   format: "svg",
   hasCache: false,
@@ -615,14 +800,21 @@ const App = {
         this.initialized = false;
         return;
       }
+      try {
+        this.lang = localStorage.getItem("svgExportLang") || "de";
+      } catch (e) {}
+      if (!I18N[this.lang]) this.lang = "de";
       const schemaData = await pywebview.api.get_schema();
       this.sections = schemaData.sections || [];
       this.schema = schemaData.options || schemaData;
+      document.getElementById("footer-version").textContent =
+        "v" + (schemaData.version || "?");
       this.buildForm();
       this.restoreSettings();
       this.bindStatic();
+      this.applyStatic();
       this.refreshStatus();
-      UI.appendLog("GUI bereit — Einstellungen wählen und exportieren.", "sys");
+      UI.appendLog(t("guiReady"), "sys");
     } catch (e) {
       this.initialized = false;
       UI.appendLog("Init-Fehler: " + (e && (e.stack || e.message || e)), "err");
@@ -655,7 +847,7 @@ const App = {
 
     for (const section of this.sections) {
       const container = containers[section.group];
-      if (container) makeSection(container, section.id, section.label, section.open);
+      if (container) makeSection(container, section.id, pickL(section, "label"), section.open);
     }
     for (const opt of this.schema) {
       let target = bodies[opt.section];
@@ -663,19 +855,126 @@ const App = {
         const fallbackId = "auto-" + (opt.group || "svg");
         if (!bodies[fallbackId]) {
           makeSection(containers[opt.group] || containers.svg,
-                      fallbackId, "Weitere", true);
+                      fallbackId, t("more"), true);
         }
         target = bodies[fallbackId];
       }
       target.appendChild(this.buildField(opt));
     }
 
-    // Zustand der statischen Sektionen (z. B. Ausgabe) wiederherstellen
+    // Zustand der statischen Sektionen (z. B. Ausgabe) wiederherstellen.
+    // dataset.bound verhindert doppelte Listener beim Sprachwechsel-Rebuild
     document.querySelectorAll("details.section").forEach((det) => {
       const id = det.dataset.section;
       if (id in savedState) det.open = !!savedState[id];
-      det.addEventListener("toggle", () => this.saveSectionState());
+      if (det.dataset.bound) return;
+      det.dataset.bound = "1";
+      det.addEventListener("toggle", () => {
+        if (det.open) {
+          this.noteSectionOpened(det);
+          this.fitSections(det.closest("aside"));
+        }
+        this.saveSectionState();
+      });
     });
+
+    // Auto-Zuklappen: Startreihenfolge = offene Sektionen in DOM-Folge,
+    // dann beide Leisten einpassen (aelteste zu, bis kein Scrollbalken)
+    this.openOrder = [];
+    document.querySelectorAll("details.section[open]").forEach((det) => {
+      this.openOrder.push(det.dataset.section);
+    });
+    document.querySelectorAll("aside").forEach((el) => this.fitSections(el));
+    if (!this._resizeBound) {
+      this._resizeBound = true;
+      window.addEventListener("resize", () => {
+        clearTimeout(this._fitTimer);
+        this._fitTimer = setTimeout(() => {
+          document.querySelectorAll("aside").forEach((el) => this.fitSections(el));
+        }, 150);
+      });
+    }
+  },
+
+  // ----- Sprache -----
+  setLang(lang) {
+    if (!I18N[lang] || lang === this.lang) return;
+    this.lang = lang;
+    try { localStorage.setItem("svgExportLang", lang); } catch (e) {}
+    // Formulare neu bauen (Labels/Hilfen), aktuelle Werte behalten
+    const current = this.collectOptions();
+    document.getElementById("form-fusion").innerHTML = "";
+    document.getElementById("form-svg").innerHTML = "";
+    this.buildForm();
+    this.applyOptionValues(current);
+    this.applyStatic();
+  },
+
+  // Alle statischen UI-Texte in der aktuellen Sprache setzen
+  applyStatic() {
+    document.querySelectorAll("#lang-switch button").forEach((btn) => {
+      btn.classList.toggle("active", btn.dataset.lang === this.lang);
+    });
+    const set = (id, key) => {
+      document.getElementById(id).textContent = t(key);
+    };
+    const setHtml = (id, key) => {
+      document.getElementById(id).innerHTML = t(key);
+    };
+    if (!this.busy) set("btn-shot", "readFusion");
+    set("fusion-title", "fusionView");
+    set("btn-viewonly", "viewOnly");
+    document.getElementById("btn-viewonly").title = t("viewOnlyTitle");
+    document.getElementById("btn-status").title = t("statusTitle");
+    setHtml("fusion-placeholder", "fusionPh");
+    if (!this.busy) set("btn-preview", "preview");
+    document.getElementById("btn-preview").title = t("previewTitle");
+    set("colors-title", "colors");
+    set("colors-left", "colorsL");
+    set("colors-right", "colorsR");
+    const hint = document.querySelector("#colors-rows .colors-hint");
+    if (hint) hint.innerHTML = t("colorsHint");
+    set("btn-colors-reset", "resetAll");
+    set("svg-title", "svgResult");
+    set("btn-fit", "fit");
+    setHtml("svg-placeholder", "svgPh");
+    set("log-title", "log");
+    set("btn-clear-log", "clear");
+    document.getElementById("btn-export-arrow").title = t("exportFmtTitle");
+    set("out-summary", "output");
+    set("out-auto-label", "autoName");
+    set("out-auto-help", "autoNameHelp");
+    document.getElementById("out-path").placeholder = t("outPh");
+    set("ctx-copy", "ctxCopy");
+    set("ctx-save", "ctxSave");
+    set("footer-donate", "donate");
+    if (!this.busy) this.setFormat(this.format);
+    const pill = document.getElementById("status-pill");
+    if (!pill.classList.contains("running")) this.setPill(t("ready"), "");
+  },
+
+  // Merkt sich, in welcher Reihenfolge Sektionen geoeffnet wurden (LRU)
+  noteSectionOpened(det) {
+    const id = det.dataset.section;
+    this.openOrder = (this.openOrder || []).filter((x) => x !== id);
+    this.openOrder.push(id);
+  },
+
+  // Klappt die am laengsten offenen Sektionen einer Seitenleiste zu, bis
+  // sie ohne Scrollbalken auskommt — die zuletzt geoeffnete bleibt offen.
+  fitSections(aside) {
+    if (!aside) return;
+    const order = this.openOrder || [];
+    let guard = 20;
+    while (guard-- > 0 && aside.scrollHeight > aside.clientHeight + 1) {
+      const open = Array.from(aside.querySelectorAll("details.section[open]"));
+      if (open.length <= 1) break; // eine bleibt immer offen
+      open.sort(
+        (a, b) =>
+          order.indexOf(a.dataset.section) - order.indexOf(b.dataset.section)
+      );
+      open[0].open = false; // aelteste zuerst schliessen
+    }
   },
 
   saveSectionState() {
@@ -697,8 +996,8 @@ const App = {
     if (opt.type === "bool") {
       wrap.innerHTML =
         '<label class="toggle"><input type="checkbox" data-role="value">' +
-        '<span class="track"></span><span>' + opt.label + "</span></label>" +
-        (opt.help ? '<div class="help">' + opt.help + "</div>" : "");
+        '<span class="track"></span><span>' + pickL(opt, "label") + "</span></label>" +
+        (opt.help ? '<div class="help">' + pickL(opt, "help") + "</div>" : "");
       const checkbox = wrap.querySelector("input");
       checkbox.checked = !!opt.default;
       if (opt.live) {
@@ -710,7 +1009,7 @@ const App = {
     let control = "";
     if (opt.type === "choice") {
       control = '<select data-role="value">' + opt.choices.map(
-        (c) => '<option value="' + c.value + '">' + c.label + "</option>"
+        (c) => '<option value="' + c.value + '">' + pickL(c, "label") + "</option>"
       ).join("") + "</select>";
     } else if (opt.type === "range") {
       control =
@@ -726,7 +1025,7 @@ const App = {
       control =
         '<label class="toggle" style="margin-bottom:6px">' +
         '<input type="checkbox" data-role="enabled"><span class="track"></span>' +
-        "<span>überschreiben</span></label>" +
+        "<span>" + t("override") + "</span></label>" +
         '<div class="row" data-role="slider-row" style="display:none">' +
         '<input type="range" data-role="value" min="' + opt.min + '" max="' + opt.max +
         '" step="' + opt.step + '" value="' + initial + '">' +
@@ -736,8 +1035,8 @@ const App = {
     }
 
     wrap.innerHTML =
-      '<label class="name">' + opt.label + "</label>" + control +
-      (opt.help ? '<div class="help">' + opt.help + "</div>" : "");
+      '<label class="name">' + pickL(opt, "label") + "</label>" + control +
+      (opt.help ? '<div class="help">' + pickL(opt, "help") + "</div>" : "");
 
     if (opt.type === "choice") wrap.querySelector("select").value = opt.default;
     if (opt.type === "range") {
@@ -789,7 +1088,7 @@ const App = {
         : entry.bodies.join(", ");
       row.innerHTML =
         '<button class="swatch" style="background:' + entry.color +
-        '" title="Zurücksetzen auf ' + entry.color + '"></button>' +
+        '" title="' + t("resetTo") + entry.color + '"></button>' +
         '<span class="arrow">→</span>' +
         '<input type="color" value="' + (kept || entry.color) + '">' +
         '<div class="cnames" title="' + entry.bodies.join(", ") + '">' + names + "</div>";
@@ -854,16 +1153,16 @@ const App = {
     if (this.busy) { this.rebuildPending = true; return; }
     if (this.rebuilding) { this.rebuildPending = true; return; }
     this.rebuilding = true;
-    this.setPill("Aktualisiere …", "running");
+    this.setPill(t("updating"), "running");
     const options = this.collectOptions();
     options.color_overrides = this.overrides;
     const result = await pywebview.api.rebuild(options);
     this.rebuilding = false;
     if (result.ok) {
       this.applyResult(result);
-      this.setPill("Vorschau ✓", "success");
+      this.setPill(t("previewOk"), "success");
     } else {
-      this.setPill("Fehler ✗", "error");
+      this.setPill(t("fail"), "error");
     }
     if (this.rebuildPending) {
       this.rebuildPending = false;
@@ -874,7 +1173,7 @@ const App = {
   applyResult(result) {
     document.getElementById("result-meta").textContent =
       result.width_mm.toFixed(1) + " × " + result.height_mm.toFixed(1) +
-      " mm · " + result.shapeCount + " Flächen · " + result.view;
+      " mm · " + result.shapeCount + " " + t("shapes") + " · " + result.view;
     PanZoom.setSvg(result.svg);
   },
 
@@ -908,7 +1207,7 @@ const App = {
   setFormat(fmt) {
     this.format = fmt;
     document.getElementById("btn-export-label").textContent =
-      "Exportieren (" + fmt.toUpperCase() + ")";
+      t("export") + " (" + fmt.toUpperCase() + ")";
     document.querySelectorAll("#export-menu .menu-item").forEach((item) => {
       item.classList.toggle("sel", item.dataset.fmt === fmt);
     });
@@ -958,6 +1257,16 @@ const App = {
 
   // ----- Aktionen -----
   bindStatic() {
+    document.querySelectorAll("#lang-switch button").forEach((btn) => {
+      btn.addEventListener("click", () => this.setLang(btn.dataset.lang));
+    });
+    // Footer-Links im System-Browser oeffnen, nie im GUI-Fenster
+    document.querySelectorAll(".app-footer a").forEach((link) => {
+      link.addEventListener("click", (e) => {
+        e.preventDefault();
+        pywebview.api.open_url(link.href);
+      });
+    });
     document.getElementById("btn-export").addEventListener("click", () => this.runExport());
     document.getElementById("btn-status").addEventListener("click", () => this.refreshStatus());
     document.getElementById("btn-shot").addEventListener("click", () => this.readFusion());
@@ -1002,24 +1311,24 @@ const App = {
     document.getElementById("ctx-copy").addEventListener("click", async () => {
       ctx.classList.remove("open");
       const isSvg = this.ctxSource === "svg";
-      if (isSvg) UI.appendLog("Rendere SVG als PNG …", "sys");
+      if (isSvg) UI.appendLog(t("renderPng"), "sys");
       const result = isSvg
         ? await pywebview.api.copy_svg_image()
         : await pywebview.api.copy_fusion_image();
       UI.appendLog(result.ok
-        ? (isSvg ? "SVG-Bild" : "Fusion-Bild") + " in die Zwischenablage kopiert."
-        : "Kopieren fehlgeschlagen: " + result.error, result.ok ? "sys" : "err");
+        ? t(isSvg ? "copiedSvg" : "copiedFusion")
+        : t("copyFail") + result.error, result.ok ? "sys" : "err");
     });
     document.getElementById("ctx-save").addEventListener("click", async () => {
       ctx.classList.remove("open");
       const isSvg = this.ctxSource === "svg";
-      if (isSvg) UI.appendLog("Rendere SVG als PNG …", "sys");
+      if (isSvg) UI.appendLog(t("renderPng"), "sys");
       const result = isSvg
         ? await pywebview.api.save_svg_image()
         : await pywebview.api.save_fusion_image();
-      if (result.ok) UI.appendLog("Bild gespeichert: " + result.path, "sys");
+      if (result.ok) UI.appendLog(t("savedImg") + result.path, "sys");
       else if (result.error !== "Abgebrochen.")
-        UI.appendLog("Speichern fehlgeschlagen: " + result.error, "err");
+        UI.appendLog(t("saveFail") + result.error, "err");
     });
     document.getElementById("btn-clear-log").addEventListener("click", () => {
       document.getElementById("log").innerHTML = "";
@@ -1029,8 +1338,7 @@ const App = {
     });
     document.getElementById("btn-preview").addEventListener("click", () => {
       if (!this.hasCache) {
-        UI.appendLog("Erst 'Auslesen aus Fusion' klicken — dann gibt es "
-          + "Daten für die Vorschau.", "err");
+        UI.appendLog(t("needRead"), "err");
         return;
       }
       this.runRebuild();
@@ -1066,24 +1374,24 @@ const App = {
     const name = document.getElementById("doc-name");
     if (status.connected) {
       dot.className = "dot on";
-      name.textContent = status.document || "kein aktives Dokument";
+      name.textContent = status.document || t("noDoc");
     } else {
       dot.className = "dot off";
-      name.textContent = "nicht verbunden";
-      UI.appendLog("Fusion nicht erreichbar: " + status.error, "err");
+      name.textContent = t("notConnected");
+      UI.appendLog(t("unreachable") + status.error, "err");
     }
   },
 
   async refreshFusionView() {
-    document.getElementById("fusion-meta").textContent = "lädt …";
+    document.getElementById("fusion-meta").textContent = t("loading");
     const result = await pywebview.api.fusion_screenshot(this.collectOptions().url);
     if (result.ok) {
       await PanZoom.setFusionImage(result.dataUri);
       document.getElementById("fusion-meta").textContent =
-        new Date().toLocaleTimeString("de-DE");
+        new Date().toLocaleTimeString(this.lang === "en" ? "en-GB" : "de-DE");
     } else {
       document.getElementById("fusion-meta").textContent = "";
-      UI.appendLog("Screenshot fehlgeschlagen: " + result.error, "err");
+      UI.appendLog(t("shotFail") + result.error, "err");
     }
   },
 
@@ -1092,8 +1400,8 @@ const App = {
     this.busy = true;
     const btn = document.getElementById("btn-shot");
     btn.disabled = true;
-    btn.textContent = "Liest aus Fusion …";
-    this.setPill("Liest aus …", "running");
+    btn.textContent = t("reading");
+    this.setPill(t("readingPill"), "running");
 
     // Screenshot sofort anzeigen, Extraktion parallel starten
     const shotPromise = this.refreshFusionView();
@@ -1102,26 +1410,25 @@ const App = {
 
     this.busy = false;
     btn.disabled = false;
-    btn.textContent = "Auslesen aus Fusion";
+    btn.textContent = t("readFusion");
     if (result.ok) {
       this.hasCache = true;
       this.document = result.document || null;
       if (result.savedOptions && Object.keys(result.savedOptions).length) {
         this.applyOptionValues(result.savedOptions);
-        UI.appendLog(
-          "Gespeicherte Einstellungen für '" + this.document + "' geladen.", "sys");
+        UI.appendLog(t("settingsLoaded").replace("{d}", this.document), "sys");
       }
       if (result.savedOverrides && Object.keys(result.savedOverrides).length) {
         this.overrides = { ...result.savedOverrides, ...this.overrides };
         UI.appendLog(
-          "Gespeicherte Farb-Anpassungen für '" + this.document + "' geladen ("
-          + Object.keys(result.savedOverrides).length + " Farben).", "sys");
+          t("overridesLoaded").replace("{d}", this.document)
+            .replace("{n}", Object.keys(result.savedOverrides).length), "sys");
       }
       this.renderPalette(result.palette);
       this.refreshStatus();
       this.runRebuild();  // direkt die erste Vorschau erzeugen
     } else {
-      this.setPill("Fehler ✗", "error");
+      this.setPill(t("fail"), "error");
     }
   },
 
@@ -1130,8 +1437,8 @@ const App = {
     this.busy = true;
     document.body.classList.add("busy");
     document.getElementById("btn-export").disabled = true;
-    document.getElementById("btn-export-label").textContent = "Exportiere …";
-    this.setPill("Läuft …", "running");
+    document.getElementById("btn-export-label").textContent = t("exporting");
+    this.setPill(t("runningPill"), "running");
     this.saveSettings();
 
     const options = this.collectOptions();
@@ -1144,7 +1451,7 @@ const App = {
     this.setFormat(this.format);  // Label inkl. Format wiederherstellen
 
     if (result.ok) {
-      this.setPill("Fertig ✓", "success");
+      this.setPill(t("doneOk"), "success");
       this.applyResult(result);
       this.hasCache = true;
       this.document = result.document || this.document;
@@ -1154,7 +1461,7 @@ const App = {
       this.renderPalette(result.palette);
       this.refreshStatus();
     } else {
-      this.setPill("Fehler ✗", "error");
+      this.setPill(t("fail"), "error");
     }
   },
 };
