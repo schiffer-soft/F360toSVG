@@ -136,9 +136,15 @@ Lambert-Schattierung mit fester Sonnenhöhe (`LIGHT_ELEVATION_DEG = 45`)
 Lichtvektor ergibt sich aus der Lichtrichtung (0 = unten, 90 = rechts,
 180 = oben, 270 = links).
 
-- **Flachschattierung** für ebene Fasen, gerade Verrundungsbänder und
-  Spline-Fasen (NurbsSurface, z. B. entlang gebogener Kanten):
+- **Flachschattierung** für ebene Fasen und gerade Verrundungsbänder:
   eine Kipprichtung = ein Farbwert.
+- **Spline-Fasen** (NurbsSurface, Fasen entlang gebogener Kanten)
+  bekommen einen **Bahn-Verlauf**: Die Extraktion liefert Punkt +
+  Normale an beiden Bahn-Enden und in der Mitte (`band`), der Builder
+  spannt daraus einen `linearGradient` von Anfang zu Ende. Die
+  Stopp-Farben kommen aus den dort gemessenen Normalen — an den Nähten
+  zu flach schattierten Nachbarfasen stimmt der Ton dadurch exakt
+  (ein einzelner Ton für die ganze Bahn erzeugte dort Farbsprünge).
 - **Ringfasen** (Kegel-/Torusmantel um eine Achse in Blickrichtung)
   bekommen einen `linearGradient` mit `gradientUnits="userSpaceOnUse"`,
   der über den **ganzen** Ring spannt (Zentrum ± Radius entlang der
