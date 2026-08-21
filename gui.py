@@ -569,9 +569,49 @@ class Api:
                 (r["name"] for r in info.get("results", []) if r.get("isActive")),
                 None,
             )
-            return {"connected": True, "document": active}
+            result = {"connected": True, "document": active}
+            if active:
+                result["path"] = self._document_path(client)
+            return result
         except (FusionMcpError, ValueError, KeyError, IndexError) as exc:
             return {"connected": False, "error": str(exc)}
+
+    # Ordner-Hierarchie des aktiven Dokuments (Cloud-Projekt).
+    # Der document-Query liefert nur die unterste Ebene, die Kette
+    # bekommt man nur ueber die API.
+    FOLDER_SCRIPT = '''
+import json
+
+
+def run(_context: str):
+    import adsk.core
+
+    app = adsk.core.Application.get()
+    chain = []
+    try:
+        data_file = app.activeDocument.dataFile
+        folder = data_file.parentFolder if data_file else None
+        guard = 0
+        while folder is not None and guard < 12:
+            chain.append(folder.name)
+            try:
+                folder = folder.parentFolder
+            except Exception:
+                folder = None
+            guard += 1
+    except Exception:
+        pass
+    print(json.dumps({"chain": list(reversed(chain))}, ensure_ascii=True))
+'''
+
+    def _document_path(self, client) -> str | None:
+        """'Projekt / Ordner / Unterordner' oder None (z. B. lokale Datei)."""
+        try:
+            output = client.run_fusion_script(self.FOLDER_SCRIPT)
+            chain = json.loads(output).get("chain") or []
+        except (FusionMcpError, ValueError, KeyError, TypeError):
+            return None
+        return " / ".join(chain) if chain else None
 
     @staticmethod
     def _crop_to_content(png_b64: str) -> str:
