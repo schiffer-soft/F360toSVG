@@ -825,11 +825,20 @@ def run(_context: str):
             out = _UiStream(self._push_log, "out")
             err = _UiStream(self._push_log, "err")
             with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err),                     self._progress_tail(), self._live_preview():
-                data = extract_data(
-                    view=cleaned.get("view", "auto"),
-                    tol_mm=cleaned.get("tol_mm", DEFAULT_TOL_MM),
-                    url=cleaned.get("url", DEFAULT_URL),
-                )
+                # Liegen ausgelesene Daten im Cache, wird daraus exportiert:
+                # das Ergebnis entspricht dann exakt der gezeigten Vorschau
+                # (und ist sofort da). Frische Geometrie holt "Auslesen aus
+                # Fusion". Ohne Cache wird hier selbst extrahiert.
+                cached = self._cache["data"] if self._cache else None
+                if cached is not None:
+                    print(t("info.export_from_cache"))
+                    data = cached
+                else:
+                    data = extract_data(
+                        view=cleaned.get("view", "auto"),
+                        tol_mm=cleaned.get("tol_mm", DEFAULT_TOL_MM),
+                        url=cleaned.get("url", DEFAULT_URL),
+                    )
                 # gespeicherte Anpassungen des Dokuments unterlegen —
                 # explizite Aenderungen aus der Sitzung gewinnen
                 effective = {

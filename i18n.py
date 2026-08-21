@@ -140,6 +140,12 @@ MESSAGES: dict[str, tuple[str, str]] = {
         "Raw data saved: {path}",
     ),
     "info.converted": ("Konvertiert: {path}", "Converted: {path}"),
+    "info.export_from_cache": (
+        "Export aus den zuletzt ausgelesenen Daten — für frische Geometrie "
+        "vorher 'Auslesen aus Fusion' klicken.",
+        "Exporting from the last extraction — click 'Read from Fusion' first "
+        "if you need fresh geometry.",
+    ),
     "info.occlusion": (
         "Verdeckungs-Analyse: {removed} von {total} Flächen unsichtbar — entfernt",
         "Occlusion analysis: {removed} of {total} faces invisible — removed",
