@@ -63,6 +63,13 @@ Extraktionsdaten und baut daraus Live-Vorschauen in ~0,05 s neu, ohne
 Fusion erneut zu befragen. Nur der Export schreibt Dateien
 (`write_file=False` bei allen Vorschau-Aufbauten).
 
+Auch der **Export** nimmt die Daten aus dem Cache, wenn welche da sind:
+0,16 s statt 8,9 s, und das Ergebnis entspricht exakt der gezeigten
+Vorschau. Frisch zu extrahieren waere sogar riskant — haette sich in
+Fusion zwischenzeitlich etwas geaendert (schon eine gedrehte Kamera bei
+Ansicht "auto"), bekaeme man etwas anderes als das gerade Freigegebene.
+Frische Geometrie holt bewusst "Auslesen aus Fusion".
+
 ### Reihenfolge beim Auslesen
 
 Beim Klick auf "Auslesen aus Fusion" laufen Screenshot und Extraktion
