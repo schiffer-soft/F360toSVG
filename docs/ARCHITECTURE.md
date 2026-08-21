@@ -11,6 +11,7 @@ der [README](../README.md).
 | `gui.py` | GUI-Backend (pywebview): JS-API, Options-Schema, Sektionen, Version |
 | `gui.html` | GUI-Frontend: Formular, gekoppelte Vorschauen, Palette, Log, i18n |
 | `export_svg.py` | Export-Kern (`extract_data`/`finalize_svg`) + CLI |
+| `i18n.py` | Alle Programm-Meldungen zweisprachig (`t()`, `retranslate()`) |
 | `fusion_extract.py` | Läuft **in Fusion**: sammelt sichtbare Flächen als JSON |
 | `svg_builder.py` | Stapelung, Naht, 3D-Fase, Textur-Muster — erzeugt das SVG |
 | `occlusion.py` | Verdeckungs-Analyse (shapely) |
@@ -20,6 +21,7 @@ der [README](../README.md).
 | `SVG-Export-GUI.bat` | GUI aus dem Quellcode starten |
 | `SVG-Export.bat` | CLI-Export per Doppelklick |
 | `%APPDATA%\F360toSVG\color_overrides.json` | Dokument-Profile: Farben + Einstellungen (automatisch angelegt) |
+| `%APPDATA%\F360toSVGpp_settings.json` | Programmweite Kleinigkeiten, z. B. zuletzt benutzter Ausgabeordner |
 
 ## Ablauf
 
@@ -250,6 +252,17 @@ Nicht-ASCII-Zeichen in Texten, die ausgegeben werden.**
 Merke: `_substitute_constant()` übergibt den Ersatztext als Funktion an
 `re.subn`, damit Backslash-Folgen (`\uXXXX`, Windows-Pfade) wörtlich
 eingesetzt und nicht als Escape-Sequenzen gedeutet werden.
+
+### Speichern-Dialog
+
+`Api.choose_output(fmt, suggest)` oeffnet den Windows-Speichern-Dialog:
+Filter und Endung richten sich nach dem Format, Startordner ist der
+zuletzt benutzte (`app_settings.json`), und `suggest=True` traegt
+`<Dokument>[-Ansicht].<Format>` als Namen ein (aus dem Cache, sonst
+`fusion-export`). Zuerst wird der pywebview-Dialog versucht, bei
+Problemen ein PowerShell-`SaveFileDialog` in eigenem Prozess — dort
+werden einfache Anfuehrungszeichen in Pfaden verdoppelt, sonst bricht
+das Skript ab. Bricht der Nutzer ab, wird nichts geschrieben.
 
 ### Frozen-Pfade (EXE)
 

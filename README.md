@@ -36,6 +36,7 @@ Same colors, same textures, same layering — as a vector file.
 - **3D bevel shading** — chamfers lit from a direction you choose, so edges look plastic
 - **Hidden face removal** — faces nobody can see are dropped, files stay small
 - **SVG, PNG, JPG, PDF, AI** — one click, 300 dpi for raster formats
+- **German and English** — the whole interface *and* the log, switchable at any time
 
 ### Requirements
 
@@ -71,6 +72,8 @@ palette in the middle, SVG options on the right.
 ---
 
 #### Step 1 — Read from Fusion
+
+The header shows which file is open, including its folder path in your Fusion project.
 
 Set the view you want in Fusion (ViewCube), then click **Read from Fusion**.
 
@@ -290,6 +293,7 @@ Gleiche Farben, gleiche Texturen, gleiche Schichtung — als Vektordatei.
 - **3D-Fasen-Schattierung** — Fasen aus wählbarer Lichtrichtung, Kanten wirken plastisch
 - **Verdeckte Flächen entfernen** — was niemand sieht, fliegt raus, die Datei bleibt klein
 - **SVG, PNG, JPG, PDF, AI** — ein Klick, Rasterformate mit 300 dpi
+- **Deutsch und Englisch** — die gesamte Oberfläche *und* das Protokoll, jederzeit umschaltbar
 
 ### Voraussetzungen
 
@@ -325,6 +329,8 @@ mit der Farbpalette, rechts die SVG-Optionen.
 ---
 
 #### Schritt 1 — Auslesen aus Fusion
+
+Oben im Kopf steht, welche Datei geöffnet ist — samt Ordnerpfad aus deinem Fusion-Projekt.
 
 Stell in Fusion die gewünschte Ansicht ein (ViewCube) und klick **Auslesen aus Fusion**.
 

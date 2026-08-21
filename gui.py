@@ -36,7 +36,7 @@ from i18n import t
 SCRIPT_DIR = app_dir()
 GUI_HTML = resource_path("gui.html")
 WINDOW_TITLE = "Fusion 360 → SVG"
-APP_VERSION = "1.0.3"  # erscheint links in der Footerleiste
+APP_VERSION = "1.0.4"  # erscheint links in der Footerleiste
 GITHUB_REPO = "schiffer-soft/F360toSVG"
 
 
