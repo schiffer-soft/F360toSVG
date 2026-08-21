@@ -113,13 +113,18 @@ def _is_ring_fase(surface: str, normal: list | None,
 
 def _ring_gradient(gradient_id: str, color: str, normal: list,
                    light_deg: float, strength: float,
-                   center_svg: tuple, radius: float) -> tuple[str, str]:
+                   center_svg: tuple, radius: float,
+                   concave: bool = False) -> tuple[str, str]:
     """(defs-Eintrag, fill-Referenz) fuer einen Ring-Verlauf.
 
     Der Verlauf spannt sich in SVG-Koordinaten ueber den GANZEN Ring
     (Zentrum +/- Radius entlang der Lichtrichtung) — Teilsegmente
     greifen sich so automatisch den korrekten Ausschnitt, und die
     Uebergaenge zu flach schattierten Nachbarfasen passen.
+
+    concave (Innenfase am Loch): die Normale laeuft ZUR Achse — die
+    lichtzugewandte Seite des Rings kippt vom Licht weg, der Verlauf
+    wird gespiegelt.
     """
     theta = math.radians(light_deg)
     direction_u = math.sin(theta)          # 90 Grad = von rechts
@@ -134,6 +139,17 @@ def _ring_gradient(gradient_id: str, color: str, normal: list,
         color, [-tilt * direction_u, -tilt * direction_v, facing],
         light_deg, strength,
     )
+    # Mittelton = Fase quer zum Licht. Ohne diesen Stopp waere die
+    # Verlaufsmitte das lineare RGB-Mittel aus dunkel/hell — bei dunklen
+    # Farben deutlich heller als die Lambert-Schattierung der flachen
+    # Nachbarfasen (harter Schnitt am Bogenende). Der Querton ist fuer
+    # konkav und konvex identisch (Licht-Anteil in der Ebene ist 0).
+    mid = shade_fase_color(
+        color, [-tilt * direction_v, tilt * direction_u, facing],
+        light_deg, strength,
+    )
+    if concave:
+        bright, dark = dark, bright
     # SVG-y zeigt nach unten -> v spiegeln
     svg_dx, svg_dy = direction_u, -direction_v
     cx, cy = center_svg
@@ -143,6 +159,7 @@ def _ring_gradient(gradient_id: str, color: str, normal: list,
         f'    <linearGradient id="{gradient_id}" gradientUnits="userSpaceOnUse" '
         f'x1="{x1:.3f}" y1="{y1:.3f}" x2="{x2:.3f}" y2="{y2:.3f}">'
         f'<stop offset="0" stop-color="{dark}"/>'
+        f'<stop offset="0.5" stop-color="{mid}"/>'
         f'<stop offset="1" stop-color="{bright}"/></linearGradient>'
     )
     return definition, f"url(#{gradient_id})"
@@ -177,6 +194,51 @@ def _loop_to_path(points: list[list[float]], min_x: float, max_y: float) -> str:
     return "".join(parts)
 
 
+def _texture_pattern(pattern_id: str, tile: dict, color: str,
+                     min_x: float, max_y: float) -> str | None:
+    """<pattern>-Definition fuer eine Textur-Kachel (userSpaceOnUse, mm).
+
+    Der Anker (projizierter Ursprung der Fusion-Textur-Projektion) legt
+    die Kachel-Phase fest, damit das Raster wie in Fusion sitzt. Beim
+    Vektor-Modus liegt die Koerperfarbe als Grundflaeche unter den
+    getracten Pfaden — Trace-Luecken an den Kachelraendern bleiben so
+    unsichtbar.
+    """
+    tile_w, tile_h = tile.get("tile_mm") or (0.0, 0.0)
+    if tile_w <= 0 or tile_h <= 0:
+        return None
+    anchor = tile.get("anchor") or [0.0, 0.0]
+    offset = tile.get("offset_mm") or [0.0, 0.0]
+    x = anchor[0] + offset[0] - min_x
+    y = max_y - (anchor[1] + offset[1])
+    angle = tile.get("angle_deg") or 0.0
+    transform = (
+        f' patternTransform="rotate({_fmt(angle)} {_fmt(x)} {_fmt(y)})"'
+        if angle else ""
+    )
+    vector = tile.get("vector")
+    if vector:
+        scale_x = tile_w / vector["width"]
+        scale_y = tile_h / vector["height"]
+        inner = (
+            f'<rect width="{_fmt(tile_w)}" height="{_fmt(tile_h)}" '
+            f'fill="{_xml_escape(color)}"/>'
+            f'<g transform="scale({scale_x:.10f} {scale_y:.10f})">'
+            f'{vector["content"]}</g>'
+        )
+    else:
+        inner = (
+            f'<image width="{_fmt(tile_w)}" height="{_fmt(tile_h)}" '
+            f'preserveAspectRatio="none" href="{tile["dataUri"]}"/>'
+        )
+    return (
+        f'    <pattern id="{pattern_id}" patternUnits="userSpaceOnUse" '
+        f'x="{_fmt(x)}" y="{_fmt(y)}" '
+        f'width="{_fmt(tile_w)}" height="{_fmt(tile_h)}"{transform}>'
+        f'{inner}</pattern>'
+    )
+
+
 # Aufkleber liegen minimal ueber ihrer Traegerflaeche im Stapel
 DECAL_DEPTH_EPS_MM = 0.001
 
@@ -197,6 +259,7 @@ def _collect_shapes(data: dict) -> list[tuple]:
                         body["name"], body["color"], face["loops"],
                         face.get("surface", ""), face.get("normal"),
                         face.get("ringCenter"), face.get("ringAxisD"),
+                        face.get("ringConcave"), body.get("textureTile"),
                     ),
                 ))
         for decal in data.get("decals", []):
@@ -205,7 +268,7 @@ def _collect_shapes(data: dict) -> list[tuple]:
             depth = decal["depth_mm"] + DECAL_DEPTH_EPS_MM
             shapes.append(((depth, depth), "decal", decal))
     except (KeyError, TypeError) as exc:
-        raise ValueError(f"Extraktionsdaten unvollstaendig ({exc})") from exc
+        raise ValueError(f"Extraktionsdaten unvollständig ({exc})") from exc
     return sorted(shapes, key=lambda shape: shape[0])
 
 
@@ -288,7 +351,7 @@ def build_svg(
         shapes, removed = cull_hidden_shapes(shapes)
         if removed:
             print(
-                f"Verdeckungs-Analyse: {removed} von {total} Flaechen "
+                f"Verdeckungs-Analyse: {removed} von {total} Flächen "
                 "unsichtbar — entfernt"
             )
     all_points = [
@@ -300,8 +363,8 @@ def build_svg(
     ]
     if not all_points:
         raise ValueError(
-            "Keine von oben sichtbaren Flaechen gefunden — "
-            "ist ein Design mit sichtbaren Koerpern aktiv?"
+            "Keine von oben sichtbaren Flächen gefunden — "
+            "ist ein Design mit sichtbaren Körpern aktiv?"
         )
 
     min_x = min(p[0] for p in all_points)
@@ -313,6 +376,9 @@ def build_svg(
     defs, paths = [], []
     shaded_count = 0
     normals_present = False
+    # Muster je Kachel-Objekt nur einmal definieren (Flaechen eines
+    # Koerpers teilen sich dasselbe textureTile-Dict)
+    pattern_paints: dict[int, str] = {}
     for index, ((z_max, z_min), kind, payload) in enumerate(shapes):
         if kind == "decal":
             clip_def, element = _decal_markup(payload, index, min_x, max_y)
@@ -320,10 +386,12 @@ def build_svg(
                 defs.append(clip_def)
             paths.append(element)
             continue
-        body_name, color, loops, surface, normal, ring_center, ring_axis_d = payload
+        (body_name, color, loops, surface, normal,
+         ring_center, ring_axis_d, ring_concave, tex_tile) = payload
         if normal:
             normals_present = True
         gradient_paint = None
+        fase_shaded = False  # Fase erkannt & schattiert -> kein Textur-Muster
         if fase_3d and normal:
             if _is_ring_fase(surface, normal, ring_center, ring_axis_d):
                 center_svg = (ring_center[0] - min_x, max_y - ring_center[1])
@@ -331,15 +399,34 @@ def build_svg(
                     f"fase-grad-{index}", str(color), normal,
                     light_deg, fase_strength / 100.0,
                     center_svg, _ring_radius(loops, ring_center),
+                    concave=bool(ring_concave),
                 )
                 defs.append(definition)
                 shaded_count += 1
+                fase_shaded = True
             elif _is_fase(surface, normal):
                 color = shade_fase_color(
                     str(color), normal, light_deg, fase_strength / 100.0
                 )
                 shaded_count += 1
-        paint = gradient_paint or _xml_escape(str(color))
+                fase_shaded = True
+        texture_paint = None
+        # Fasen texturierter Koerper bleiben Muster-frei: sie zeigen die
+        # schattierte Durchschnittsfarbe, nur Deckflaechen die Kachelung
+        if tex_tile and not fase_shaded:
+            key = id(tex_tile)
+            if key not in pattern_paints:
+                pattern_id = f"texpat-{len(pattern_paints)}"
+                definition = _texture_pattern(
+                    pattern_id, tex_tile, str(color), min_x, max_y
+                )
+                pattern_paints[key] = (
+                    f"url(#{pattern_id})" if definition else ""
+                )
+                if definition:
+                    defs.append(definition)
+            texture_paint = pattern_paints[key] or None
+        paint = texture_paint or gradient_paint or _xml_escape(str(color))
         path_d = " ".join(_loop_to_path(lp["points"], min_x, max_y) for lp in loops)
         paths.append(
             f'  <path d="{path_d}" fill="{paint}" fill-rule="evenodd" '
@@ -351,9 +438,9 @@ def build_svg(
     if fase_3d:
         if shaded_count:
             print(f"3D-Fase: {shaded_count} Fasen schattiert "
-                  f"(Licht {light_deg:.0f} Grad, Staerke {fase_strength:.0f} %)")
+                  f"(Licht {light_deg:.0f} Grad, Stärke {fase_strength:.0f} %)")
         elif not normals_present:
-            print("Hinweis: Daten ohne Normalen — fuer 3D-Fase bitte einmal "
+            print("Hinweis: Daten ohne Normalen — für 3D-Fase bitte einmal "
                   "neu 'Auslesen aus Fusion'.")
 
     document_name = _xml_escape(
@@ -366,7 +453,7 @@ def build_svg(
         f'width="{_fmt(width)}mm" height="{_fmt(height)}mm" '
         f'viewBox="0 0 {_fmt(width)} {_fmt(height)}">\n'
         f"  <!-- {document_name} — Ansicht: {view}, "
-        f"Flaechen von hinten nach vorn gestapelt -->\n"
+        f"Flächen von hinten nach vorn gestapelt -->\n"
         + defs_block
         + "\n".join(paths)
         + "\n</svg>\n"

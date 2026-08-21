@@ -48,7 +48,7 @@ def cull_hidden_shapes(shapes: list) -> tuple[list, int]:
         from shapely import prepare, union_all
     except ImportError:
         print(
-            "Warnung: shapely fehlt — verdeckte Flaechen bleiben im SVG "
+            "Warnung: shapely fehlt — verdeckte Flächen bleiben im SVG "
             "(py -3 -m pip install shapely).",
             file=sys.stderr,
         )

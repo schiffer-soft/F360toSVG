@@ -46,7 +46,7 @@ class FusionMcpClient:
             reason = getattr(exc, "reason", exc)
             raise FusionMcpError(
                 f"Fusion MCP Server unter {self.url} nicht erreichbar ({reason}). "
-                "Laeuft Fusion 360 und ist der MCP Server in den Voreinstellungen aktiviert?"
+                "Läuft Fusion 360 und ist der MCP Server in den Voreinstellungen aktiviert?"
             ) from exc
         except (TimeoutError, OSError) as exc:
             raise FusionMcpError(
