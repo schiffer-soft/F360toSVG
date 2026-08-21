@@ -1100,9 +1100,13 @@ const App = {
       const slider = wrap.querySelector('[data-role="value"]');
       const display = wrap.querySelector('[data-role="display"]');
       enabled.checked = opt.default !== null && opt.default !== undefined;
+      // Anzeige generisch: factor/digits/unit aus dem Schema
+      const factor = opt.factor ?? 100;
+      const digits = opt.digits ?? 0;
+      const unit = opt.unit ?? " %";
       const sync = () => {
         row.style.display = enabled.checked ? "flex" : "none";
-        display.textContent = Math.round(slider.value * 100) + " %";
+        display.textContent = (slider.value * factor).toFixed(digits) + unit;
       };
       enabled.addEventListener("change", sync);
       slider.addEventListener("input", sync);
@@ -1426,7 +1430,8 @@ const App = {
     } else {
       dot.className = "dot off";
       name.textContent = t("notConnected");
-      UI.appendLog(t("unreachable") + status.error, "err");
+      // status.error bringt die Anleitung schon mit (i18n "mcp.unreachable")
+      UI.appendLog(status.error, "err");
     }
   },
 

@@ -88,11 +88,15 @@ OPTION_SCHEMA = [
         "help_en": "Viewing direction of the projection",
     },
     {
-        "id": "seam_mm", "label": "Naht-Stroke (mm)", "label_en": "Seam stroke (mm)", "type": "number", "group": "svg", "section": "svg_basis",
-        "default": DEFAULT_SEAM_STROKE_MM, "min": 0, "max": 1, "step": 0.05,
+        "id": "seam_mm", "label": "Naht-Stroke", "label_en": "Seam stroke",
+        "type": "optional_number", "group": "svg", "section": "svg_basis",
+        "default": None, "min": 0.02, "max": 0.5, "step": 0.02,
+        "fallback": DEFAULT_SEAM_STROKE_MM, "factor": 1, "digits": 2, "unit": " mm",
         "live": True,
-        "help": "Überdeckt Antialiasing-Nähte; 0 = maßhaltig",
-        "help_en": "Covers antialiasing seams; 0 = dimensionally exact",
+        "help": "Überdeckt feine Antialiasing-Nähte zwischen angrenzenden "
+                "Flächen. Aus = maßhaltig (z. B. für Lasercut)",
+        "help_en": "Covers thin antialiasing seams between adjacent faces. "
+                   "Off = dimensionally exact (e.g. for laser cutting)",
     },
     {
         "id": "tol_mm", "label": "Kurven-Toleranz (mm)", "label_en": "Curve tolerance (mm)", "type": "number", "group": "fusion", "section": "extraktion",
@@ -103,6 +107,7 @@ OPTION_SCHEMA = [
     {
         "id": "decal_opacity", "label": "Deckkraft", "label_en": "Opacity", "type": "optional_number", "group": "svg", "section": "aufkleber",
         "default": 0.5, "min": 0, "max": 1, "step": 0.05, "fallback": 0.5,
+        "factor": 100, "digits": 0, "unit": " %",
         "live": True,
         "help": "Standard 50 %; Aus = Wert aus Fusion übernehmen. Wirkt sofort auf das SVG",
         "help_en": "Default 50%; off = use the value from Fusion. Updates the SVG immediately",
@@ -824,9 +829,11 @@ class Api:
     def _finalize(self, data: dict, options: dict, output,
                   write_file: bool = True) -> dict:
         cleaned = self._clean_options(options)
+        # Naht-Stroke ist abschaltbar: None (Schalter aus) = 0 mm
+        seam = (options or {}).get("seam_mm")
         result = finalize_svg(
             data,
-            seam_mm=cleaned.get("seam_mm", DEFAULT_SEAM_STROKE_MM),
+            seam_mm=float(seam) if seam is not None else 0.0,
             decal_opacity=(options or {}).get("decal_opacity"),
             trace_decals=cleaned.get("trace_decals", False),
             color_overrides=(options or {}).get("color_overrides"),

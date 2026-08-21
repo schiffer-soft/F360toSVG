@@ -76,8 +76,9 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
              "right=von X+, left=von X- (Standard: auto)",
     )
     parser.add_argument(
-        "--seam-mm", type=float, default=DEFAULT_SEAM_STROKE_MM,
-        help=f"Breite des Naht-Strokes in mm, 0 = aus (Standard: {DEFAULT_SEAM_STROKE_MM})",
+        "--seam-mm", type=float, default=0.0,
+        help="Breite des Naht-Strokes in mm gegen Antialiasing-Nähte; "
+             f"0 = aus (Standard). Üblicher Wert: {DEFAULT_SEAM_STROKE_MM}",
     )
     parser.add_argument(
         "--tol-mm", type=float, default=0.01,

@@ -72,6 +72,28 @@ CAMERA_VIEW_MAP = {
 }
 
 
+CAMERA_TILT_WARN_DEG = 5.0  # ab hier lohnt der Hinweis auf die schraege Kamera
+
+
+def camera_tilt_deg(app):
+    """Winkel zwischen Blickrichtung und naechster Achse (Grad).
+
+    0 = exakt achsparallel (ViewCube-Flaeche). Bei schraeger Kamera wird
+    trotzdem gerade projiziert — der Nutzer soll wissen, dass das Ergebnis
+    dann von seinem Viewport abweichen kann.
+    """
+    import math
+
+    camera = app.activeViewport.camera
+    eye, target = camera.eye, camera.target
+    direction = (target.x - eye.x, target.y - eye.y, target.z - eye.z)
+    length = math.sqrt(sum(component * component for component in direction))
+    if not length:
+        return 0.0
+    dominant = max(abs(component) for component in direction) / length
+    return math.degrees(math.acos(max(0.0, min(1.0, dominant))))
+
+
 def resolve_view(app):
     """Ansicht bestimmen; bei "auto" aus der aktuellen Viewport-Kamera."""
     if VIEW != "auto":
@@ -447,6 +469,10 @@ def run(_context: str):
         "bodies": [],
     }
     progress(msg("fusion.document", document=app.activeDocument.name, view=view))
+    if VIEW == "auto":
+        tilt = camera_tilt_deg(app)
+        if tilt >= CAMERA_TILT_WARN_DEG:
+            progress(msg("fusion.tilted_camera", angle=tilt, view=view))
     partial_write(
         {"meta": {"document": out["document"], "units": "mm", "view": view}},
         truncate=True,

@@ -242,10 +242,22 @@ MESSAGES: dict[str, tuple[str, str]] = {
 
     # --- Verbindung zu Fusion ---------------------------------------------
     "mcp.unreachable": (
-        "Fusion MCP Server nicht erreichbar ({url}).\n"
-        "Läuft Fusion 360 und ist der MCP Server in den Voreinstellungen aktiviert?",
-        "Fusion MCP server not reachable ({url}).\n"
-        "Is Fusion 360 running and the MCP server enabled in the preferences?",
+        "Keine Verbindung zu Fusion ({url}).\n"
+        "Ohne den MCP Server kann F360toSVG dein Design nicht lesen. "
+        "So schaltest du ihn ein:\n"
+        "  1. In Fusion oben rechts auf deinen Namen → Voreinstellungen\n"
+        "  2. Links auf 'Allgemein' → 'API'\n"
+        "  3. Haken bei 'Fusion MCP Server' setzen (Port 27182)\n"
+        "  4. Fusion neu starten und ein Design öffnen\n"
+        "Danach hier auf ⟳ neben dem Dokumentnamen klicken.",
+        "No connection to Fusion ({url}).\n"
+        "Without the MCP server F360toSVG cannot read your design. "
+        "How to switch it on:\n"
+        "  1. In Fusion click your name (top right) → Preferences\n"
+        "  2. On the left choose 'General' → 'API'\n"
+        "  3. Tick 'Fusion MCP Server' (port 27182)\n"
+        "  4. Restart Fusion and open a design\n"
+        "Then click ⟳ next to the document name here.",
     ),
     "mcp.timeout": (
         "Zeitüberschreitung nach {seconds}s — dauert die Extraktion zu lange?",
@@ -276,6 +288,15 @@ MESSAGES: dict[str, tuple[str, str]] = {
     "fusion.body_progress": (
         "Körper {index}/{total} verarbeitet, {faces} Flächen (zuletzt: '{name}')",
         "Body {index}/{total} processed, {faces} faces (last: '{name}')",
+    ),
+    "fusion.tilted_camera": (
+        "Hinweis: Die Kamera steht {angle:.0f}° schräg zur Achse. "
+        "Projiziert wird trotzdem gerade von '{view}' — schmale Flächen "
+        "können dadurch anders aussehen als im Viewport. "
+        "Für ein exaktes Ergebnis eine Fläche des ViewCube anklicken.",
+        "Note: the camera is {angle:.0f}° off axis. The projection is still "
+        "straight from '{view}', so narrow faces may look different than in "
+        "the viewport. For an exact result, click a face of the ViewCube.",
     ),
     "fusion.decals_search": (
         "Suche Aufkleber (Decals) ...", "Looking for decals ..."),
