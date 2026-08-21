@@ -26,7 +26,9 @@ from export_svg import (
     finalize_svg,
     resource_path,
 )
+import i18n
 from fusion_mcp_client import DEFAULT_URL, FusionMcpClient, FusionMcpError
+from i18n import t
 
 # Veraenderliches (Profile, Exporte) liegt neben EXE/Skript,
 # eingebettete Ressourcen (gui.html) kommen aus dem PyInstaller-Bundle
@@ -328,11 +330,10 @@ class Api:
             return
         try:
             cls.OVERRIDES_FILE.write_bytes(cls.LEGACY_OVERRIDES_FILE.read_bytes())
-            print(f"Dokument-Profile übernommen: {cls.LEGACY_OVERRIDES_FILE} "
-                  f"→ {cls.OVERRIDES_FILE}")
+            print(t("info.profiles_migrated",
+                    source=cls.LEGACY_OVERRIDES_FILE, target=cls.OVERRIDES_FILE))
         except OSError as exc:
-            print(f"Warnung: Profile konnten nicht übernommen werden: {exc}",
-                  file=sys.stderr)
+            print(t("warn.profiles_migrate_failed", error=exc), file=sys.stderr)
 
     def _read_store(self) -> dict:
         try:
@@ -362,7 +363,7 @@ class Api:
                           options: dict) -> dict:
         """Speichert Farben + Einstellungen eines Dokuments dauerhaft."""
         if not document:
-            return {"ok": False, "error": "Kein Dokumentname."}
+            return {"ok": False, "error": t("err.no_document")}
         allowed = OPTION_IDS | set(self.DOC_OPTION_KEYS)
         clean_options = {
             key: value for key, value in (options or {}).items()
@@ -474,6 +475,10 @@ class Api:
             "options": OPTION_SCHEMA,
             "version": APP_VERSION,
         }
+
+    def set_language(self, lang: str) -> dict:
+        """Sprache der Protokoll-Meldungen setzen (Flaggen-Umschalter)."""
+        return {"ok": True, "lang": i18n.set_lang(lang)}
 
     @staticmethod
     def _version_tuple(text: str) -> tuple:
@@ -648,7 +653,7 @@ class Api:
             )
             path = (result.stdout or "").strip()
             if not path:
-                return {"ok": False, "error": "Abgebrochen."}
+                return {"ok": False, "error": t("err.cancelled")}
             Path(path).write_bytes(png)
             return {"ok": True, "path": path}
         except (OSError, subprocess.TimeoutExpired) as exc:
@@ -713,7 +718,7 @@ class Api:
     def read_fusion(self, options: dict) -> dict:
         """Nur auslesen: Fusion-Extraktion in den Cache, Palette fuellen."""
         if not self._export_lock.acquire(blocking=False):
-            return {"ok": False, "error": "Ein Vorgang läuft bereits."}
+            return {"ok": False, "error": t("err.busy_task")}
         try:
             cleaned = self._clean_options(options)
             out = _UiStream(self._push_log, "out")
@@ -727,10 +732,7 @@ class Api:
             out.flush()
             err.flush()
             self._cache = {"data": data, "path": None}
-            self._push_log(
-                "Daten ausgelesen — Farben geladen. Änderungen an Farben/"
-                "Deckkraft bauen das SVG direkt aus dem Cache.", "sys",
-            )
+            self._push_log(t("info.data_read"), "sys")
             saved = self._load_doc_entry(data.get("document"))
             return {
                 "ok": True,
@@ -741,10 +743,10 @@ class Api:
                 "savedOptions": saved["options"],
             }
         except (ExportError, FusionMcpError) as exc:
-            self._push_log(f"Fehler: {exc}", "err")
+            self._push_log(t("err.prefix", error=exc), "err")
             return {"ok": False, "error": str(exc)}
         except Exception as exc:
-            self._push_log(f"Interner Fehler: {exc!r}", "err")
+            self._push_log(t("err.internal", error=repr(exc)), "err")
             return {"ok": False, "error": repr(exc)}
         finally:
             self._export_lock.release()
@@ -752,7 +754,7 @@ class Api:
     def run_export(self, options: dict) -> dict:
         """Voller Export (Fusion-Extraktion + SVG); Logs streamen live."""
         if not self._export_lock.acquire(blocking=False):
-            return {"ok": False, "error": "Ein Export läuft bereits."}
+            return {"ok": False, "error": t("err.busy_export")}
         try:
             cleaned = self._clean_options(options)
             out = _UiStream(self._push_log, "out")
@@ -782,10 +784,10 @@ class Api:
                 **result,
             }
         except (ExportError, FusionMcpError) as exc:
-            self._push_log(f"Fehler: {exc}", "err")
+            self._push_log(t("err.prefix", error=exc), "err")
             return {"ok": False, "error": str(exc)}
         except Exception as exc:  # unerwartete Fehler sichtbar machen
-            self._push_log(f"Interner Fehler: {exc!r}", "err")
+            self._push_log(t("err.internal", error=repr(exc)), "err")
             return {"ok": False, "error": repr(exc)}
         finally:
             self._export_lock.release()
@@ -795,11 +797,10 @@ class Api:
         if self._cache is None:
             return {
                 "ok": False,
-                "error": "Noch nichts ausgelesen — erst 'Auslesen aus Fusion' "
-                         "oder einen Export starten.",
+                "error": t("err.no_cache"),
             }
         if not self._export_lock.acquire(blocking=False):
-            return {"ok": False, "error": "Ein Export läuft bereits."}
+            return {"ok": False, "error": t("err.busy_export")}
         try:
             out = _UiStream(self._push_log, "out")
             err = _UiStream(self._push_log, "err")
@@ -812,10 +813,10 @@ class Api:
             err.flush()
             return {"ok": True, **result}
         except (ExportError, FusionMcpError) as exc:
-            self._push_log(f"Fehler: {exc}", "err")
+            self._push_log(t("err.prefix", error=exc), "err")
             return {"ok": False, "error": str(exc)}
         except Exception as exc:
-            self._push_log(f"Interner Fehler: {exc!r}", "err")
+            self._push_log(t("err.internal", error=repr(exc)), "err")
             return {"ok": False, "error": repr(exc)}
         finally:
             self._export_lock.release()
@@ -853,17 +854,16 @@ class Api:
         try:
             from svg_convert import ConvertError, convert_svg_file
         except ImportError:
-            print("Warnung: svg_convert.py fehlt — es bleibt beim SVG.",
-                  file=sys.stderr)
+            print(t("warn.svg_convert_missing"), file=sys.stderr)
             return
         try:
             converted = convert_svg_file(Path(result["svgPath"]), fmt)
-            print(f"Konvertiert: {converted}")
+            print(t("info.converted", path=converted))
             result["path"] = str(converted)
             result["format"] = fmt
         except ConvertError as exc:
-            print(f"Warnung: {fmt.upper()}-Konvertierung fehlgeschlagen ({exc}) — "
-                  "das SVG liegt trotzdem vor.", file=sys.stderr)
+            print(t("warn.convert_failed", format=fmt.upper(), error=exc),
+                  file=sys.stderr)
 
     # --- Dateisystem ------------------------------------------------------------
 
@@ -911,7 +911,7 @@ class Api:
                 capture_output=True, text=True, timeout=300,
             )
         except (OSError, subprocess.TimeoutExpired) as exc:
-            self._push_log(f"Windows-Dialog fehlgeschlagen: {exc!r}", "err")
+            self._push_log(t("err.dialog_failed", error=repr(exc)), "err")
             return None
         path = (result.stdout or "").strip()
         return path or None

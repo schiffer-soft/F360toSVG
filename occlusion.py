@@ -15,6 +15,8 @@ from __future__ import annotations
 
 import sys
 
+from i18n import t
+
 # Union nicht nach jeder Flaeche neu aufbauen — Batches halten GEOS schnell
 UNION_BATCH_SIZE = 25
 
@@ -47,11 +49,7 @@ def cull_hidden_shapes(shapes: list) -> tuple[list, int]:
     try:
         from shapely import prepare, union_all
     except ImportError:
-        print(
-            "Warnung: shapely fehlt — verdeckte Flächen bleiben im SVG "
-            "(py -3 -m pip install shapely).",
-            file=sys.stderr,
-        )
+        print(t("warn.shapely"), file=sys.stderr)
         return shapes, 0
 
     keep = [True] * len(shapes)

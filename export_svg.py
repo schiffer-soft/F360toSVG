@@ -28,7 +28,9 @@ import re
 import sys
 from pathlib import Path
 
+import i18n
 from fusion_mcp_client import DEFAULT_URL, FusionMcpClient, FusionMcpError
+from i18n import t
 from svg_builder import DEFAULT_SEAM_STROKE_MM, build_svg
 
 def app_dir() -> Path:
@@ -125,32 +127,57 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
 
 
 def _substitute_constant(script: str, pattern: str, replacement: str) -> str:
-    """Konstante im Extraktionsskript ersetzen; schlaegt hart fehl statt still."""
-    result, count = re.subn(pattern, replacement, script, count=1, flags=re.MULTILINE)
+    """Konstante im Extraktionsskript ersetzen; schlaegt hart fehl statt still.
+
+    Der Ersatztext geht als Funktion hinein, damit re ihn woertlich nimmt:
+    sonst wuerden Backslash-Folgen wie \\u00f6 (aus dem ASCII-JSON) oder
+    Windows-Pfade als Escape-Sequenzen missverstanden.
+    """
+    result, count = re.subn(pattern, lambda _match: replacement, script,
+                            count=1, flags=re.MULTILINE)
     if count != 1:
-        raise ValueError(
-            f"Platzhalter '{pattern}' nicht in fusion_extract.py gefunden — "
-            "wurde die Vorlage umformatiert?"
-        )
+        raise ValueError(t("err.placeholder", pattern=pattern))
     return result
 
 
+def _fusion_messages() -> str:
+    """Fortschritts-Texte fürs Fusion-Skript als reines ASCII.
+
+    ensure_ascii=True ist Pflicht: Der Skripttext geht als JSON durch den
+    MCP-Server nach Fusion, und dort überleben Umlaute den Transfer nicht
+    (aus "Körper" wurde "KÃ¶rper"). Als \\uXXXX-Escape kommt jeder
+    Buchstabe heil an.
+    """
+    index = 1 if i18n.get_lang() == "en" else 0
+    texts = {
+        key: value[index]
+        for key, value in i18n.MESSAGES.items()
+        if key.startswith("fusion.")
+    }
+    return json.dumps(texts, ensure_ascii=True, sort_keys=True)
+
+
 def load_extract_script(tolerance_mm: float, view: str) -> str:
-    """Extraktionsskript laden, Sampling-Toleranz und Ansicht einsetzen."""
+    """Extraktionsskript laden; Toleranz, Ansicht und Texte einsetzen."""
     if not EXTRACT_SCRIPT.is_file():
         raise FileNotFoundError(f"Extraktionsskript fehlt: {EXTRACT_SCRIPT}")
     script = EXTRACT_SCRIPT.read_text(encoding="utf-8")
     if not math.isfinite(tolerance_mm) or tolerance_mm <= 0:
-        raise ValueError("--tol-mm muss eine endliche Zahl größer 0 sein.")
+        raise ValueError(i18n.t("err.tol"))
     script = _substitute_constant(
         script,
         r"^STROKE_TOL_CM = [0-9.]+",
         f"STROKE_TOL_CM = {tolerance_mm / 10.0}",
     )
-    return _substitute_constant(
+    script = _substitute_constant(
         script,
         r'^VIEW = "[a-z]+"',
         f'VIEW = "{view}"',
+    )
+    return _substitute_constant(
+        script,
+        r"^MESSAGES = \{\}",
+        "MESSAGES = " + _fusion_messages(),
     )
 
 
@@ -162,15 +189,11 @@ def average_texture_color(texture: dict) -> str | None:
     try:
         from PIL import Image, ImageStat
     except ImportError:
-        print(
-            "Warnung: Pillow fehlt — Textur-Durchschnitt nicht möglich "
-            "(pip install pillow).",
-            file=sys.stderr,
-        )
+        print(t("warn.pillow.average"), file=sys.stderr)
         return None
     path = Path(str(texture.get("file", "")))
     if not path.is_file():
-        print(f"Warnung: Texturdatei nicht gefunden: {path}", file=sys.stderr)
+        print(t("warn.texture.not_found", path=path), file=sys.stderr)
         return None
     try:
         with Image.open(path) as image:
@@ -178,7 +201,7 @@ def average_texture_color(texture: dict) -> str | None:
             image.thumbnail((TEXTURE_SAMPLE_SIZE, TEXTURE_SAMPLE_SIZE))
             means = ImageStat.Stat(image).mean  # [R, G, B]
     except OSError as exc:
-        print(f"Warnung: Textur nicht lesbar ({path.name}): {exc}", file=sys.stderr)
+        print(t("warn.texture.unreadable", name=path.name, error=exc), file=sys.stderr)
         return None
     if texture.get("invert"):
         means = [255.0 - value for value in means]
@@ -199,7 +222,8 @@ def resolve_texture_colors(data: dict) -> None:
         average = average_texture_color(texture)
         if average:
             source = Path(str(texture.get("file", "?"))).name
-            print(f"Textur-Durchschnitt für '{body.get('name')}': {average} ({source})")
+            print(t("info.texture.average", body=body.get("name"),
+                    color=average, file=source))
             body["color"] = average
 
 
@@ -230,11 +254,7 @@ def _prepare_tile_image(texture: dict, tint: str | None,
     try:
         from PIL import Image, ImageOps, ImageStat
     except ImportError:
-        print(
-            "Warnung: Pillow fehlt — Textur-Kacheln nicht möglich "
-            "(pip install pillow).",
-            file=sys.stderr,
-        )
+        print(t("warn.pillow.tiles"), file=sys.stderr)
         return None
     path = Path(str(texture.get("file", "")))
     if not path.is_file():
@@ -297,11 +317,7 @@ def _trace_tile_vector(image, colors: int) -> dict | None:
     try:
         import vtracer
     except ImportError:
-        print(
-            "Warnung: vtracer fehlt — Textur wird als Bild eingebettet "
-            "(pip install vtracer).",
-            file=sys.stderr,
-        )
+        print(t("warn.vtracer.texture"), file=sys.stderr)
         return None
     import tempfile
 
@@ -322,12 +338,11 @@ def _trace_tile_vector(image, colors: int) -> dict | None:
             )
             svg_text = out_path.read_text(encoding="utf-8")
         except Exception as exc:  # vtracer wirft generische Fehler
-            print(f"Warnung: Textur-Tracing fehlgeschlagen: {exc}", file=sys.stderr)
+            print(t("warn.texture.trace_failed", error=exc), file=sys.stderr)
             return None
     vector = _parse_traced_svg(svg_text)
     if vector is None:
-        print("Warnung: Unerwartetes vtracer-Ergebnis für Textur-Kachel",
-              file=sys.stderr)
+        print(t("warn.texture.trace_unexpected"), file=sys.stderr)
     return vector
 
 
@@ -391,14 +406,12 @@ def resolve_texture_tiles(data: dict, mode: str, colors: int,
             "offset_mm": texture.get("offset_mm") or [0.0, 0.0],
             "angle_deg": float(texture.get("angle_deg") or 0.0),
         }
-        kind = "vektorisiert" if "vector" in tile else "als Bild eingebettet"
-        detail = (
-            f", {tile['vector']['pathCount']} Pfade" if "vector" in tile else ""
-        )
-        print(
-            f"Textur für '{body.get('name')}' {kind} "
-            f"(Kachel {scale[0]:.1f} x {scale[1]:.1f} mm{detail})"
-        )
+        is_vector = "vector" in tile
+        kind = t("info.texture.kind_vector" if is_vector else "info.texture.kind_image")
+        detail = (t("info.texture.paths", count=tile["vector"]["pathCount"])
+                  if is_vector else "")
+        print(t("info.texture.tile", body=body.get("name"), kind=kind,
+                w=scale[0], h=scale[1], detail=detail))
 
 
 TRACE_PATH_PRECISION = 2   # Nachkommastellen der Pfadkoordinaten (Pixelraum)
@@ -419,11 +432,7 @@ def _binarize_alpha(path: Path, tmp_dir: Path) -> Path:
     try:
         from PIL import Image
     except ImportError:
-        print(
-            "Warnung: Pillow fehlt — Tracing ohne Binarisierung "
-            "(weiche Kanten werden fleckig).",
-            file=sys.stderr,
-        )
+        print(t("warn.pillow.binarize"), file=sys.stderr)
         return path
     try:
         with Image.open(path) as image:
@@ -436,7 +445,7 @@ def _binarize_alpha(path: Path, tmp_dir: Path) -> Path:
             Image.merge("RGBA", (r, g, b, hard)).save(out_path)
             return out_path
     except OSError as exc:
-        print(f"Warnung: Binarisierung fehlgeschlagen ({path.name}): {exc}",
+        print(t("warn.binarize_failed", name=path.name, error=exc),
               file=sys.stderr)
         return path
 
@@ -450,11 +459,7 @@ def trace_decal_vector(path: Path, index: int) -> dict | None:
     try:
         import vtracer
     except ImportError:
-        print(
-            "Warnung: vtracer fehlt — Aufkleber wird als PNG eingebettet "
-            "(pip install vtracer).",
-            file=sys.stderr,
-        )
+        print(t("warn.vtracer.decal"), file=sys.stderr)
         return None
     import tempfile
 
@@ -472,13 +477,12 @@ def trace_decal_vector(path: Path, index: int) -> dict | None:
             )
             svg_text = out_path.read_text(encoding="utf-8")
         except Exception as exc:  # vtracer wirft generische Fehler
-            print(f"Warnung: Tracing fehlgeschlagen ({path.name}): {exc}",
+            print(t("warn.decal.trace_failed", name=path.name, error=exc),
                   file=sys.stderr)
             return None
     vector = _parse_traced_svg(svg_text)
     if vector is None:
-        print(f"Warnung: Unerwartetes vtracer-Ergebnis für {path.name}",
-              file=sys.stderr)
+        print(t("warn.decal.trace_unexpected", name=path.name), file=sys.stderr)
         return None
     blur_px = vector["width"] * TRACE_BLUR_RATIO
     if blur_px > 0:  # optional — rastert beim Rendern, macht Zoom unscharf
@@ -503,32 +507,29 @@ def resolve_decal_images(
             decal["opacity"] = opacity_override
         path = Path(str(decal.get("file", "")))
         if not path.is_file():
-            print(f"Warnung: Aufkleber-Bild nicht gefunden: {path}", file=sys.stderr)
+            print(t("warn.decal.not_found", path=path), file=sys.stderr)
             continue
-        opacity_note = f"Deckkraft {decal.get('opacity', 1.0):.0%}"
+        opacity_note = t("info.decal.opacity", value=decal.get("opacity", 1.0))
         if trace:
             vector = trace_decal_vector(path, index)
             if vector:
                 decal["vector"] = vector
                 kept.append(decal)
-                print(
-                    f"Aufkleber '{decal.get('name')}' vektorisiert "
-                    f"({path.name}, {vector['pathCount']} Pfade, {opacity_note})"
-                )
+                print(t("info.decal.traced", name=decal.get("name"),
+                        file=path.name, count=vector["pathCount"],
+                        opacity=opacity_note))
                 continue  # sonst Fallback auf PNG-Einbettung
         try:
             raw = path.read_bytes()
         except OSError as exc:
-            print(f"Warnung: Aufkleber-Bild nicht lesbar ({path.name}): {exc}",
+            print(t("warn.decal.unreadable", name=path.name, error=exc),
                   file=sys.stderr)
             continue
         mime = mimetypes.guess_type(path.name)[0] or "image/png"
         decal["dataUri"] = f"data:{mime};base64,{base64.b64encode(raw).decode('ascii')}"
         kept.append(decal)
-        print(
-            f"Aufkleber '{decal.get('name')}' eingebettet "
-            f"({path.name}, {len(raw) // 1024} KB, {opacity_note})"
-        )
+        print(t("info.decal.embedded", name=decal.get("name"), file=path.name,
+                size=len(raw) // 1024, opacity=opacity_note))
     data["decals"] = kept
 
 
@@ -558,18 +559,13 @@ def extract_data(
 
     client = FusionMcpClient(url)
     client.connect()
-    print(
-        f"Verbunden mit Fusion MCP Server ({url}), "
-        f"extrahiere Flächen (Ansicht: {view}) ..."
-    )
+    print(t("info.connected", url=url, view=view))
     output_text = client.run_fusion_script(script)
 
     try:
         data = json.loads(output_text)
     except ValueError as exc:
-        raise ExportError(
-            f"Unerwartete Skriptausgabe:\n{output_text[:500]}"
-        ) from exc
+        raise ExportError(t("err.script_output", output=output_text[:500])) from exc
     if "error" in data:
         raise ExportError(str(data["error"]))
 
@@ -580,15 +576,14 @@ def extract_data(
             data = json.loads(result_file.read_text(encoding="utf-8"))
         except (OSError, ValueError) as exc:
             raise ExportError(
-                f"Ergebnisdatei {result_file} nicht lesbar: {exc}"
-            ) from exc
+                t("err.result_unreadable", path=result_file, error=exc)) from exc
         try:
             result_file.unlink()
         except OSError:
             pass  # Aufraeumen ist optional, naechster Export ueberschreibt
 
     if view == "auto":
-        print(f"Ansicht aus Fusion-Kamera abgeleitet: {data.get('view')}")
+        print(t("info.view_from_camera", view=data.get("view")))
 
     resolve_texture_colors(data)
     return data
@@ -620,11 +615,11 @@ def finalize_svg(
     mit anderen Optionen (Farben, Deckkraft, Naht) neu gebaut werden.
     """
     if decal_opacity is not None and not (0.0 <= decal_opacity <= 1.0):
-        raise ExportError("Aufkleber-Deckkraft muss zwischen 0 und 1 liegen.")
+        raise ExportError(t("err.decal_opacity"))
     if texture_mode not in TEXTURE_MODES:
-        raise ExportError(f"Unbekannter Textur-Modus: {texture_mode}")
+        raise ExportError(t("err.texture_mode", value=texture_mode))
     if texture_recolor not in TEXTURE_RECOLOR_MODES:
-        raise ExportError(f"Unbekannter Texturfarben-Modus: {texture_recolor}")
+        raise ExportError(t("err.texture_recolor", value=texture_recolor))
 
     work = json.loads(json.dumps(data))  # resolve_* mutiert -> frische Kopie
     if color_overrides:
@@ -649,7 +644,7 @@ def finalize_svg(
             Path(dump_json).write_text(
                 json.dumps(work, indent=1, ensure_ascii=False), encoding="utf-8"
             )
-            print(f"Rohdaten gespeichert: {dump_json}")
+            print(t("info.raw_saved", path=dump_json))
 
         result = build_svg(
             work, seam_stroke_mm=seam_mm, cull_hidden=cull_hidden,
@@ -663,22 +658,16 @@ def finalize_svg(
     except ValueError as exc:
         raise ExportError(str(exc)) from exc
     except OSError as exc:
-        raise ExportError(f"Fehler beim Schreiben: {exc}") from exc
+        raise ExportError(t("err.write_failed", error=exc)) from exc
 
     if write_file:
-        print(
-            f"OK: {output_path} — {len(result['shapes'])} Flächen, "
-            f"{result['width_mm']:.1f} x {result['height_mm']:.1f} mm, "
-            f"Ansicht: {resolved_view}"
-        )
+        print(t("info.export_ok", path=output_path, faces=len(result["shapes"]),
+                w=result["width_mm"], h=result["height_mm"], view=resolved_view))
         for z_max, z_min, name, color in result["shapes"]:
             print(f"  z={z_min:7.2f}..{z_max:7.2f}  {color}  {name}")
     else:
-        print(
-            f"Vorschau: {len(result['shapes'])} Flächen, "
-            f"{result['width_mm']:.1f} x {result['height_mm']:.1f} mm, "
-            f"Ansicht: {resolved_view} (nichts gespeichert)"
-        )
+        print(t("info.preview_ok", faces=len(result["shapes"]),
+                w=result["width_mm"], h=result["height_mm"], view=resolved_view))
 
     return {
         "path": str(output_path) if write_file else None,
@@ -743,7 +732,7 @@ def main(argv: list[str]) -> int:
             texture_brightness=args.texture_brightness,
         )
     except (ExportError, FusionMcpError) as exc:
-        print(f"Fehler: {exc}", file=sys.stderr)
+        print(t("err.prefix", error=exc), file=sys.stderr)
         return 1
     return 0
 

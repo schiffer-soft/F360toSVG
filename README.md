@@ -230,7 +230,6 @@ Technical details are documented in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 - **Overlapping bodies in the same depth range** — the stacking order is undefined there
   (only affects bodies that intersect each other).
 - **Fusion visibility counts** — hidden bodies (light bulb off) are skipped.
-- **Log messages are German** — the interface itself is fully English.
 
 ### Troubleshooting
 

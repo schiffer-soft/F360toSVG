@@ -12,6 +12,8 @@ from __future__ import annotations
 import re
 import shutil
 import subprocess
+
+from i18n import t
 import tempfile
 from pathlib import Path
 
@@ -34,9 +36,7 @@ def _find_edge() -> str:
     for candidate in EDGE_CANDIDATES:
         if candidate.is_file():
             return str(candidate)
-    raise ConvertError(
-        "Microsoft Edge nicht gefunden — wird für PNG/JPG/PDF/AI-Export benötigt."
-    )
+    raise ConvertError(t("convert.no_edge"))
 
 
 def _svg_size_mm(svg_text: str) -> tuple[float, float]:
