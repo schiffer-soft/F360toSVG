@@ -189,14 +189,33 @@ generisch über die `id`.
 
 ### Mehrsprachigkeit
 
-Die Oberfläche ist deutsch/englisch. Schema-Einträge tragen dafür
-`label_en` und `help_en` (auch je `choice`), die festen UI-Texte stehen im
-`I18N`-Wörterbuch in `gui.html` und werden über `t(key)` geholt;
-`pickL(entry, feld)` wählt die Sprachvariante eines Schema-Feldes. Der
-Sprachwechsel baut die Formulare neu auf und stellt die Werte wieder her.
-Die Auswahl liegt in `localStorage` (`svgExportLang`).
+Die Oberfläche ist deutsch/englisch — inklusive aller Protokoll-Meldungen.
 
-Die Protokoll-Meldungen des Backends sind derzeit noch deutsch.
+**Frontend:** Schema-Einträge tragen `label_en` und `help_en` (auch je
+`choice`), die festen UI-Texte stehen im `I18N`-Wörterbuch in `gui.html`
+und werden über `t(key)` geholt; `pickL(entry, feld)` wählt die
+Sprachvariante eines Schema-Feldes. Der Sprachwechsel baut die Formulare
+neu auf und stellt die Werte wieder her. Die Auswahl liegt in
+`localStorage` (`svgExportLang`).
+
+**Backend:** `i18n.py` hält alle Meldungen als `{schlüssel: (de, en)}`;
+die Module rufen `t("key", param=…)`. Beim Sprachwechsel ruft das
+Frontend `Api.set_language()`, ab dann erscheinen neue Meldungen in der
+gewählten Sprache (bereits ausgegebene Zeilen bleiben stehen). Die
+Log-Farben im Frontend erkennen beide Präfixe (`Warnung`/`Warning`).
+
+**Fusion-Skript:** `fusion_extract.py` läuft in Fusion und kann `i18n`
+nicht importieren. Es hat deshalb ein leeres `MESSAGES = {}`, das
+`load_extract_script()` mit den übersetzten Texten füllt — als
+`json.dumps(..., ensure_ascii=True)`. Das ist **Pflicht**: Der Skripttext
+geht als JSON durch den MCP-Server nach Fusion und Umlaute überleben den
+Transfer nicht (aus `Körper` wurde `KÃ¶rper`); als `\uXXXX`-Escape kommt
+jeder Buchstabe heil an. Deshalb gilt für dieses Skript: **keine
+Nicht-ASCII-Zeichen in Texten, die ausgegeben werden.**
+
+Merke: `_substitute_constant()` übergibt den Ersatztext als Funktion an
+`re.subn`, damit Backslash-Folgen (`\uXXXX`, Windows-Pfade) wörtlich
+eingesetzt und nicht als Escape-Sequenzen gedeutet werden.
 
 ### Frozen-Pfade (EXE)
 

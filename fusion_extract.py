@@ -31,6 +31,23 @@ GRID_N = 5             # Parameter-Raster fuer Normalen-Check gekruemmter Flaech
 COORD_DECIMALS = 4     # Nachkommastellen der mm-Koordinaten
 VIEW = "auto"          # Blickrichtung; wird von export_svg.py ersetzt
 
+# Fortschritts-Texte in der Sprache der Oberflaeche; werden von
+# export_svg.py als reines ASCII (\uXXXX) eingesetzt. Wichtig: KEINE
+# Umlaute direkt in dieses Skript schreiben — beim Transfer nach Fusion
+# gehen Nicht-ASCII-Zeichen kaputt (aus "Koerper" wird "KÃ¶rper").
+MESSAGES = {}
+
+
+def msg(key, **kwargs):
+    """Uebersetzten Fortschrittstext bauen; faellt auf den Schluessel zurueck."""
+    text = MESSAGES.get(key, key)
+    if not kwargs:
+        return text
+    try:
+        return text.format(**kwargs)
+    except Exception:
+        return text
+
 # Toleranzen der Kanten-Verkettung (Koordinaten hier in cm):
 JOIN_DIST2_TOL_CM2 = 1e-12  # quadrierter Abstand fuer "Punkte identisch"
 
@@ -416,7 +433,7 @@ def run(_context: str):
     app = adsk.core.Application.get()
     design = adsk.fusion.Design.cast(app.activeProduct)
     if not design:
-        print(json.dumps({"error": "Kein aktives Design in Fusion geöffnet."}))
+        print(json.dumps({"error": msg("fusion.no_design")}))
         return
 
     root = design.rootComponent
@@ -429,7 +446,7 @@ def run(_context: str):
         "viewSource": "camera" if VIEW == "auto" else "cli",
         "bodies": [],
     }
-    progress(f"Dokument '{app.activeDocument.name}', Ansicht: {view}")
+    progress(msg("fusion.document", document=app.activeDocument.name, view=view))
     partial_write(
         {"meta": {"document": out["document"], "units": "mm", "view": view}},
         truncate=True,
@@ -440,7 +457,7 @@ def run(_context: str):
         # Occurrence-Bodies sind Proxies -> Geometrie kommt in Weltkoordinaten
         all_bodies.extend(occurrence.bRepBodies)
     visible_bodies = [b for b in all_bodies if b.isVisible]
-    progress(f"{len(visible_bodies)} sichtbare Körper gefunden")
+    progress(msg("fusion.bodies_found", count=len(visible_bodies)))
 
     total_faces = 0
     # nicht jeden Koerper melden — bei grossen Designs ~20 Sammelmeldungen
@@ -461,19 +478,18 @@ def run(_context: str):
         if entry["faces"]:
             partial_write({"body": entry})
         if index % report_step == 0 or index == len(visible_bodies):
-            progress(
-                f"Körper {index}/{len(visible_bodies)} verarbeitet, "
-                f"{total_faces} Flächen (zuletzt: '{body.name}')"
-            )
+            progress(msg(
+                "fusion.body_progress", index=index, total=len(visible_bodies),
+                faces=total_faces, name=body.name,
+            ))
 
-    progress("Suche Aufkleber (Decals) ...")
+    progress(msg("fusion.decals_search"))
     out["decals"] = collect_decals(root, axes)
     if out["decals"]:
-        progress(f"{len(out['decals'])} Aufkleber erfasst")
-    progress(
-        f"Extraktion fertig: {len(visible_bodies)} Körper, "
-        f"{total_faces} Flächen — übertrage Ergebnis ..."
-    )
+        progress(msg("fusion.decals_found", count=len(out['decals'])))
+    progress(msg(
+        "fusion.done", bodies=len(visible_bodies), faces=total_faces,
+    ))
 
     # Ergebnis in eine Temp-Datei schreiben statt zu printen:
     # der MCP-Server kappt print-Ausgaben bei 1 MiB, grosse Designs

@@ -614,9 +614,11 @@ const UI = {
     log.scrollTop = log.scrollHeight;
   },
   _classify(line, kind) {
+    // Praefixe beider Sprachen erkennen (Warnung/Warning)
+    const isWarn = line.startsWith("Warnung") || line.startsWith("Warning");
     if (line.startsWith("OK:")) return "ok";
-    if (line.startsWith("Warnung")) return "warn";
-    if (kind === "err") return line.startsWith("Warnung") ? "warn" : "err";
+    if (isWarn) return "warn";
+    if (kind === "err") return "err";
     if (kind === "sys") return "sys";
     return "out";
   },
@@ -820,6 +822,7 @@ const App = {
         this.lang = localStorage.getItem("svgExportLang") || "de";
       } catch (e) {}
       if (!I18N[this.lang]) this.lang = "de";
+      try { await pywebview.api.set_language(this.lang); } catch (e) {}
       const schemaData = await pywebview.api.get_schema();
       this.sections = schemaData.sections || [];
       this.schema = schemaData.options || schemaData;
@@ -943,6 +946,8 @@ const App = {
     if (!I18N[lang] || lang === this.lang) return;
     this.lang = lang;
     try { localStorage.setItem("svgExportLang", lang); } catch (e) {}
+    // Backend mitziehen: neue Protokoll-Meldungen kommen dann uebersetzt
+    try { pywebview.api.set_language(lang); } catch (e) {}
     // Formulare neu bauen (Labels/Hilfen), aktuelle Werte behalten
     const current = this.collectOptions();
     document.getElementById("form-fusion").innerHTML = "";

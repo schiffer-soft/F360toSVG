@@ -15,6 +15,8 @@ from __future__ import annotations
 
 import math
 
+from i18n import t
+
 PRECISION = 3  # Nachkommastellen im SVG-Pfad (mm)
 
 # 3D-Fase: Hoehe der gedachten Sonne ueber der Bildebene. 45 Grad heisst:
@@ -268,7 +270,7 @@ def _collect_shapes(data: dict) -> list[tuple]:
             depth = decal["depth_mm"] + DECAL_DEPTH_EPS_MM
             shapes.append(((depth, depth), "decal", decal))
     except (KeyError, TypeError) as exc:
-        raise ValueError(f"Extraktionsdaten unvollständig ({exc})") from exc
+        raise ValueError(t("err.data_incomplete", error=exc)) from exc
     return sorted(shapes, key=lambda shape: shape[0])
 
 
@@ -350,10 +352,7 @@ def build_svg(
         total = len(shapes)
         shapes, removed = cull_hidden_shapes(shapes)
         if removed:
-            print(
-                f"Verdeckungs-Analyse: {removed} von {total} Flächen "
-                "unsichtbar — entfernt"
-            )
+            print(t("info.occlusion", removed=removed, total=total))
     all_points = [
         point
         for _, kind, payload in shapes
@@ -362,10 +361,7 @@ def build_svg(
         for point in loop["points"]
     ]
     if not all_points:
-        raise ValueError(
-            "Keine von oben sichtbaren Flächen gefunden — "
-            "ist ein Design mit sichtbaren Körpern aktiv?"
-        )
+        raise ValueError(t("err.no_faces"))
 
     min_x = min(p[0] for p in all_points)
     max_x = max(p[0] for p in all_points)
@@ -437,11 +433,10 @@ def build_svg(
 
     if fase_3d:
         if shaded_count:
-            print(f"3D-Fase: {shaded_count} Fasen schattiert "
-                  f"(Licht {light_deg:.0f} Grad, Stärke {fase_strength:.0f} %)")
+            print(t("info.bevel", count=shaded_count, light=light_deg,
+                    strength=fase_strength))
         elif not normals_present:
-            print("Hinweis: Daten ohne Normalen — für 3D-Fase bitte einmal "
-                  "neu 'Auslesen aus Fusion'.")
+            print(t("info.bevel_no_normals"))
 
     document_name = _xml_escape(
         str(data.get("document", "Fusion Design")).replace("--", "- -")

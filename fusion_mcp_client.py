@@ -7,6 +7,8 @@ Voreinstellungen > Allgemein > "Fusion MCP Server" aktiviert.
 from __future__ import annotations
 
 import json
+
+from i18n import t
 import urllib.error
 import urllib.request
 
@@ -45,14 +47,10 @@ class FusionMcpClient:
         except urllib.error.URLError as exc:
             reason = getattr(exc, "reason", exc)
             raise FusionMcpError(
-                f"Fusion MCP Server unter {self.url} nicht erreichbar ({reason}). "
-                "Läuft Fusion 360 und ist der MCP Server in den Voreinstellungen aktiviert?"
-            ) from exc
+                t("mcp.unreachable", url=f"{self.url}, {reason}")) from exc
         except (TimeoutError, OSError) as exc:
             raise FusionMcpError(
-                f"Verbindung zum Fusion MCP Server abgebrochen ({exc}). "
-                f"Timeout nach {TIMEOUT_S}s — dauert die Extraktion zu lange?"
-            ) from exc
+                t("mcp.timeout", seconds=TIMEOUT_S) + f" ({exc})") from exc
         if not body.strip():
             return session_id, None
         if "text/event-stream" in content_type:
@@ -129,6 +127,5 @@ class FusionMcpClient:
             raise FusionMcpError(f"Unerwartetes Tool-Ergebnis: {content[0]}") from exc
         if not result.get("success", False):
             raise FusionMcpError(
-                "Skriptfehler in Fusion:\n" + str(result.get("error", result))
-            )
+                t("mcp.script_error", error=result.get("error", result)))
         return str(result.get("message", ""))
