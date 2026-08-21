@@ -487,6 +487,24 @@ class Api:
         """Sprache der Protokoll-Meldungen setzen (Flaggen-Umschalter)."""
         return {"ok": True, "lang": i18n.set_lang(lang)}
 
+    # Praefix der Fortschrittszeilen aus Fusion (siehe _progress_tail)
+    PROGRESS_PREFIX = "  » "
+
+    def retranslate_log(self, lines: list, lang: str) -> list:
+        """Bereits ausgegebene Protokoll-Zeilen in die Zielsprache bringen.
+
+        Liefert je Zeile den neuen Text oder None (dann bleibt sie stehen).
+        """
+        result = []
+        for line in lines or []:
+            text = str(line)
+            prefix = ""
+            if text.startswith(self.PROGRESS_PREFIX):
+                prefix, text = self.PROGRESS_PREFIX, text[len(self.PROGRESS_PREFIX):]
+            translated = i18n.retranslate(text, lang)
+            result.append(prefix + translated if translated else None)
+        return result
+
     @staticmethod
     def _version_tuple(text: str) -> tuple:
         """'v1.2.3' -> (1, 2, 3); unbekannte Teile werden zu 0."""

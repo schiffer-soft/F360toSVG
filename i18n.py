@@ -334,3 +334,64 @@ def t(key: str, **kwargs) -> str:
         return text.format(**kwargs)
     except (KeyError, IndexError, ValueError):
         return text
+
+
+# --- Rueckuebersetzung fertiger Zeilen ---------------------------------------
+# Damit beim Sprachwechsel auch das BEREITS ausgegebene Protokoll umschaltet:
+# Jede Meldung wird als Regex ueber ihr Template erkannt, die Platzhalter
+# werden ausgelesen und in der Zielsprache wieder eingesetzt. Das
+# funktioniert auch fuer Zeilen, die in Fusion gerendert wurden.
+_PATTERNS: list[tuple] | None = None
+
+
+def _build_patterns() -> list[tuple]:
+    import re
+
+    patterns = []
+    for key, variants in MESSAGES.items():
+        for text in variants:
+            names = re.findall(r"\{(\w+)[^}]*\}", text)
+            # Template in Regex uebersetzen: fester Text escaped,
+            # Platzhalter als moeglichst genuegsame Gruppe
+            parts, last = [], 0
+            for match in re.finditer(r"\{\w+[^}]*\}", text):
+                parts.append(re.escape(text[last:match.start()]))
+                parts.append(r"(.*?)")
+                last = match.end()
+            parts.append(re.escape(text[last:]))
+            try:
+                pattern = re.compile("^" + "".join(parts) + "$", re.DOTALL)
+            except re.error:
+                continue
+            patterns.append((pattern, key, names))
+    return patterns
+
+
+def retranslate(line: str, lang: str) -> str | None:
+    """Eine fertige Protokoll-Zeile in die Zielsprache übertragen.
+
+    Liefert None, wenn die Zeile zu keiner bekannten Meldung passt
+    (z. B. Ausgaben ohne Übersetzung) — dann bleibt sie stehen.
+    """
+    global _PATTERNS
+    if _PATTERNS is None:
+        _PATTERNS = _build_patterns()
+    index = 1 if str(lang).lower().startswith("en") else 0
+    for pattern, key, names in _PATTERNS:
+        match = pattern.match(line)
+        if not match:
+            continue
+        target = MESSAGES[key][index]
+        if not names:
+            return target
+        values = dict(zip(names, match.groups()))
+        try:
+            # Formatspezifikationen ({x:.1f}) auf reine Platzhalter
+            # reduzieren — die Werte sind bereits formatierte Strings
+            import re
+
+            plain = re.sub(r"\{(\w+)[^}]*\}", r"{\1}", target)
+            return plain.format(**values)
+        except (KeyError, IndexError, ValueError):
+            return target
+    return None

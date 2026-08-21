@@ -533,6 +533,7 @@ const I18N = {
     previewOk: "Vorschau ✓", doneOk: "Fertig ✓", fail: "Fehler ✗",
     runningPill: "Läuft …", loading: "lädt …",
     noDoc: "kein aktives Dokument", notConnected: "nicht verbunden",
+    openFile: "Geöffnete Datei:",
     unreachable: "Fusion nicht erreichbar: ",
     shapes: "Flächen", override: "überschreiben", more: "Weitere",
     resetTo: "Zurücksetzen auf ",
@@ -577,6 +578,7 @@ const I18N = {
     previewOk: "Preview ✓", doneOk: "Done ✓", fail: "Error ✗",
     runningPill: "Working …", loading: "loading …",
     noDoc: "no active document", notConnected: "not connected",
+    openFile: "Open file:",
     unreachable: "Fusion not reachable: ",
     shapes: "faces", override: "override", more: "More",
     resetTo: "Reset to ",
@@ -622,6 +624,7 @@ const UI = {
     const t = new Date().toLocaleTimeString("de-DE");
     const div = document.createElement("div");
     div.className = "line-" + cls;
+    div.dataset.text = line;  // fuer die Rueckuebersetzung beim Sprachwechsel
     div.innerHTML = '<span class="t">' + t + "</span>";
     div.appendChild(document.createTextNode(line));
     log.appendChild(div);
@@ -930,6 +933,31 @@ const App = {
     }
   },
 
+  // Eine Zeile gegen das Frontend-Woerterbuch pruefen und in der
+  // Zielsprache neu bauen; null, wenn sie zu keiner Meldung passt.
+  retranslateOwn(line, lang) {
+    const target = I18N[lang];
+    if (!target) return null;
+    for (const source of ["de", "en"]) {
+      for (const key of Object.keys(I18N[source])) {
+        const template = I18N[source][key];
+        if (typeof template !== "string" || !target[key]) continue;
+        const names = [];
+        const pattern = template
+          .replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+          .replace(/\\\{(\w+)\\\}/g, (m, name) => { names.push(name); return "(.*?)"; });
+        const match = new RegExp("^" + pattern + "$", "s").exec(line);
+        if (!match) continue;
+        let result = target[key];
+        names.forEach((name, i) => {
+          result = result.replace("{" + name + "}", match[i + 1]);
+        });
+        return result;
+      }
+    }
+    return null;
+  },
+
   // ----- Update-Hinweis -----
   // Erst 30 s nach dem Start fragen: der Programmstart soll nicht auf
   // das Netz warten. Fehler bleiben still, der Hinweis erscheint nur,
@@ -971,6 +999,35 @@ const App = {
     this.buildForm();
     this.applyOptionValues(current);
     this.applyStatic();
+    this.retranslateLog(lang);
+  },
+
+  // Bereits ausgegebene Protokoll-Zeilen mit umschalten: das Backend
+  // erkennt jede Meldung an ihrem Muster und liefert sie uebersetzt
+  // zurueck. Zeilen ohne Treffer bleiben unveraendert stehen.
+  async retranslateLog(lang) {
+    const rows = Array.from(document.querySelectorAll("#log > div"));
+    if (!rows.length) return;
+    const texts = rows.map((row) => row.dataset.text || "");
+    // Erst die Meldungen aus dem Frontend-Woerterbuch (die kennt das
+    // Backend nicht), dann den Rest vom Backend uebersetzen lassen
+    const own = texts.map((line) => this.retranslateOwn(line, lang));
+    const rest = texts.map((line, i) => (own[i] ? "" : line));
+    let translated = null;
+    try {
+      translated = await pywebview.api.retranslate_log(rest, lang);
+    } catch (e) { translated = null; }
+    translated = (translated || []).map((line, i) => own[i] || line);
+    if (!translated.length) return;
+    rows.forEach((row, index) => {
+      const line = translated[index];
+      if (!line) return;
+      row.dataset.text = line;
+      const stamp = row.querySelector(".t");
+      row.innerHTML = "";
+      if (stamp) row.appendChild(stamp);
+      row.appendChild(document.createTextNode(line));
+    });
   },
 
   // Alle statischen UI-Texte in der aktuellen Sprache setzen
@@ -1011,6 +1068,13 @@ const App = {
     set("ctx-copy", "ctxCopy");
     set("ctx-save", "ctxSave");
     set("footer-donate", "donate");
+    // Dokument-Badge mitziehen (Praefix "Geöffnete Datei:")
+    const docName = document.getElementById("doc-name");
+    if (this.documentName) {
+      docName.textContent = t("openFile") + " " + this.documentName;
+    } else if (docName.textContent && !docName.textContent.includes("…")) {
+      docName.textContent = t(this.connected === false ? "notConnected" : "noDoc");
+    }
     if (!this.busy) this.setFormat(this.format);
     this.applyUpdateHint();  // Sprachwechsel: Hinweistext mitziehen
     const pill = document.getElementById("status-pill");
@@ -1440,11 +1504,17 @@ const App = {
     const status = await pywebview.api.get_status(url);
     const dot = document.getElementById("conn-dot");
     const name = document.getElementById("doc-name");
+    this.connected = !!status.connected;
     if (status.connected) {
       dot.className = "dot on";
-      name.textContent = status.document || t("noDoc");
+      // Dokumentname merken, damit der Sprachwechsel das Praefix mitzieht
+      this.documentName = status.document || null;
+      name.textContent = status.document
+        ? t("openFile") + " " + status.document
+        : t("noDoc");
     } else {
       dot.className = "dot off";
+      this.documentName = null;
       name.textContent = t("notConnected");
       // status.error bringt die Anleitung schon mit (i18n "mcp.unreachable")
       UI.appendLog(status.error, "err");
